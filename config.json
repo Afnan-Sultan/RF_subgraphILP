@@ -22,7 +22,7 @@
     "cell_lines_thresh":800
   },
   "model": {
-    "models": ["corr_num", "original", "corr_thresh", "random"]
+    "models": ["subgraphilp", "original", "corr_num", "corr_thresh", "random"]
   },
   "data": {
     "gene_matrix_file": "data/gdsc/GDSC_RMA_proc_gene_expression_preprocessed_replicate_removed_8_10_2020.txt",

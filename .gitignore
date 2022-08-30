@@ -1,6 +1,7 @@
 .venv
 venv
 .idea
+__pycache__
 results
 *temp*
 .ipynb_checkpoints

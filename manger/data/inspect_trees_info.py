@@ -35,5 +35,5 @@ def process_trees_info(file):
 
 
 if __name__ == "__main__":
-    file_ = "/home/afnan/Afnan/Thesis/RF_subgraphILP/results/zscore_classification_weighted_biased_1_gt_800/intermediate_output/5-Fluorouracil/rf_tress_info/subgraphilp_trees_indices_features.json"
+    file_ = "/results/zscore_classification_weighted_biased_1_gt_800/intermediate_output/5-Fluorouracil/rf_tress_info/subgraphilp_trees_indices_features.json"
     used_feats = process_trees_info(file_)
