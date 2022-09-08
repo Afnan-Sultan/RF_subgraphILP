@@ -2,11 +2,9 @@ import logging
 import time
 
 import pandas as pd
-
 from manger.config import Kwargs
 from manger.scoring_metrics.utils import subsets_means
-from manger.training.cross_validation import (cross_validation,
-                                              get_rand_cv_results)
+from manger.training.cross_validation import cross_validation, get_rand_cv_results
 from manger.training.train_best_parameters import best_model
 
 logger = logging.getLogger(__name__)
@@ -31,7 +29,6 @@ def grid_search_cv(
     train_scores = pd.Series(..., columns=["ic_50"], index=[cell_lines: List[int]])
     return: dict of results for each hyperparameters combination
     """
-
     train_features.columns = train_features.columns.astype(str)
     test_features.columns = test_features.columns.astype(str)
 
@@ -49,27 +46,26 @@ def grid_search_cv(
         kwargs.training.gcv_idx = idx
         if kwargs.model.current_model == "random" and kwargs.training.bias_rf:
             cv_results = get_rand_cv_results(
-                rf_params,
-                train_features,
-                train_labels,
-                train_classes,
-                train_scores,
-                kwargs,
+                rf_params=rf_params,
+                train_features=train_features,
+                train_labels=train_labels,
+                train_classes=train_classes,
+                train_scores=train_scores,
+                kwargs=kwargs,
                 out_log=False,
             )
         else:
             cv_results = cross_validation(
-                rf_params,
-                train_features,
-                train_labels,
-                train_classes,
-                train_scores,
-                kwargs,
-                out_log,
+                rf_params=rf_params,
+                train_features=train_features,
+                train_labels=train_labels,
+                train_classes=train_classes,
+                train_scores=train_scores,
+                kwargs=kwargs,
+                out_log=out_log,
             )
-
-        if not cv_results:
-            return None
+        if cv_results is None:
+            continue
 
         for model, results in cv_results.items():
             if model in gcv_results:
@@ -82,27 +78,30 @@ def grid_search_cv(
         )
 
     # rank parameters based on performance of sensitive cell lines
-    gcv_results, rank_params, best_params = process_grid_search_results(
-        parameters_grid, gcv_results, params_mean_perf, kwargs
-    )
-    for model in gcv_results.keys():
-        gcv_results[model]["gcv_runtime"] = time.time() - start
-    logger.info(f"--- {kwargs.data.drug_name} - finished CROSS VALIDATION ---")
+    if len(gcv_results) > 0:
+        gcv_results, rank_params, best_params = process_grid_search_results(
+            parameters_grid, gcv_results, params_mean_perf, kwargs
+        )
+        for model in gcv_results.keys():
+            gcv_results[model]["gcv_runtime"] = time.time() - start
+        logger.info(f"--- {kwargs.data.drug_name} - finished CROSS VALIDATION ---")
 
-    # train best model
-    gcv_results = best_params_model(
-        gcv_results,
-        best_params,
-        train_features,
-        train_labels,
-        train_classes,
-        train_scores,
-        test_features,
-        test_labels,
-        test_classes,
-        kwargs,
-    )
-    return gcv_results
+        # train best model
+        gcv_results = best_params_model(
+            gcv_results=gcv_results,
+            best_params=best_params,
+            train_features=train_features,
+            train_labels=train_labels,
+            train_classes=train_classes,
+            train_scores=train_scores,
+            test_features=test_features,
+            test_labels=test_labels,
+            test_classes=test_classes,
+            kwargs=kwargs,
+        )
+        return gcv_results
+    else:
+        return None
 
 
 def process_grid_search_results(parameters_grid, gcv_results, params_mean_perf, kwargs):
@@ -123,7 +122,6 @@ def process_grid_search_results(parameters_grid, gcv_results, params_mean_perf, 
 
     for model in rank_params.keys():
         gcv_results[model]["rank_params_scores"] = rank_params[model]
-
     best_params = [
         parameters_grid[list(rank.keys())[0]]
         for model, subset_rank in rank_params.items()

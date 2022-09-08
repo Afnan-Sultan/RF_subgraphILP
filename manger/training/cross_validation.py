@@ -2,11 +2,10 @@ import logging
 
 import numpy as np
 import pandas as pd
-from sklearn.model_selection import StratifiedKFold
-
 from manger.config import Kwargs
 from manger.models.random_forest import which_rf
 from manger.scoring_metrics.utils import splits_stats
+from sklearn.model_selection import StratifiedKFold
 
 logger = logging.getLogger(__name__)
 
@@ -56,19 +55,30 @@ def cross_validation(
         cv_test_features = train_features.iloc[test_index]
 
         fit_runtime, test_runtime, acc, sorted_features, _ = which_rf(
-            rf_params,
-            cv_train_features,
-            cv_train_classes,
-            cv_train_scores,
-            cv_train_labels,
-            cv_test_features,
-            cv_test_labels,
-            cv_test_classes,
-            kwargs,
+            rf_params=rf_params,
+            train_features=cv_train_features,
+            train_classes=cv_train_classes,
+            train_scores=cv_train_scores,
+            train_labels=cv_train_labels,
+            test_features=cv_test_features,
+            test_labels=cv_test_labels,
+            test_classes=cv_test_classes,
+            kwargs=kwargs,
         )
 
+        if (
+            acc is None
+        ):  # for cases like thresholded correlation, when no features available
+            logger.info(
+                f"{kwargs.data.drug_name} - finished CV {k} with scores for sensitive cell lines: not available"
+            )
+            continue
+
         if model in cv_results:
-            cv_results[model]["important_features"].append(sorted_features[:10])
+            if (
+                cv_results[model]["important_features"] is not None
+            ):  # features not reported for the random model
+                cv_results[model]["important_features"].append(sorted_features[:10])
             cv_results[model]["train_runtime"].append(fit_runtime)
             cv_results[model]["test_runtime"].append(test_runtime)
             for subset, acc_score in acc.items():
@@ -77,7 +87,10 @@ def cross_validation(
             cv_results[model] = {
                 "train_runtime": [fit_runtime],
                 "test_runtime": [test_runtime],
-                "important_features": [sorted_features[:10]],
+                # features not reported for the random model
+                "important_features": None
+                if sorted_features is None
+                else [sorted_features[:10]],
             }
             for subset, acc_score in acc.items():
                 cv_results[model][f"ACCs_{subset}"] = [acc_score]
@@ -87,11 +100,14 @@ def cross_validation(
                 f"{cv_results[model]['ACCs_sensitivity'][k]}"
             )
         k += 1
-    cv_results[model]["stats"] = splits_stats(
-        cv_results[model], kwargs.training.regression
-    )
     kwargs.training.cv_idx = None
-    return cv_results
+    if model in cv_results:
+        cv_results[model]["stats"] = splits_stats(
+            cv_results[model], kwargs.training.regression
+        )
+        return cv_results
+    else:
+        return None
 
 
 def get_rand_cv_results(

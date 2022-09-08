@@ -3,16 +3,19 @@ import statistics
 import time
 from typing import List, Union
 
-import numpy as np
 import pandas as pd
-from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
-
 from manger.config import Kwargs
 from manger.models.utils.biased_random_forest import (
-    ILPBiasedRandomForestClassifier, ILPBiasedRandomForestRegressor)
+    BiasedRandomForestClassifier,
+    BiasedRandomForestRegressor,
+)
 from manger.scoring_metrics.scoring import calc_accuracy
 from manger.training.feature_selection import feature_selection
-from manger.training.weighting_samples import calculate_simple_weights
+from manger.training.weighting_samples import (
+    calculate_linear_weights,
+    calculate_simple_weights,
+)
+from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
 
 
 def which_rf(
@@ -56,7 +59,7 @@ def which_rf(
             train_features, train_classes, train_scores, kwargs, test_features
         )
         if to_rf is None:
-            return None
+            return None, None, None, None, None
 
         if model == "random":
             fit_runtime, test_runtime, acc = get_rand_rf_results(
@@ -67,6 +70,7 @@ def which_rf(
                 train_labels,
                 test_labels,
                 train_scores,
+                train_classes,
                 test_classes,
                 kwargs,
             )
@@ -116,19 +120,22 @@ def do_rf(
     """
 
     if kwrags.training.weight_samples:
-        weights = calculate_simple_weights(kwrags.data.drug_threshold, train_scores)
+        if kwrags.training.simple_weight:
+            weights = calculate_simple_weights(kwrags.data.drug_threshold, train_scores)
+        else:
+            weights = calculate_linear_weights(kwrags.data.drug_threshold, train_scores)
     else:
         weights = None
 
     if kwrags.training.regression:
         # rf = RandomForestRegressor(**rf_params)
-        rf = ILPBiasedRandomForestRegressor(
+        rf = BiasedRandomForestRegressor(
             kwrags, train_classes, train_scores, **rf_params
         )
 
     else:
         # rf = RandomForestClassifier(**rf_params)
-        rf = ILPBiasedRandomForestClassifier(
+        rf = BiasedRandomForestClassifier(
             kwrags, train_classes, train_scores, **rf_params
         )
 
@@ -167,7 +174,10 @@ def do_rf(
             features_importance = pd.DataFrame(
                 {"genes": features_names, col_name: rf.feature_importances_}
             )
-        num_features = len(features_importance)
+        if kwrags.training.bias_rf:
+            num_features = [len(tree.feature_names_in_) for tree in rf.estimators_]
+        else:
+            num_features = len(features_importance)
         sorted_features = features_importance.sort_values(
             by=[col_name], ascending=False
         )[:100]
@@ -194,6 +204,7 @@ def get_rand_rf_results(
     train_labels: pd.Series,
     test_labels: pd.Series,
     train_scores: pd.Series,
+    train_classes: pd.Series,
     test_classes: pd.Series,
     kwargs: Kwargs,
 ):
@@ -213,15 +224,15 @@ def get_rand_rf_results(
     test_runtimes = []
     accs = []
     for features in features_list:
-        rand_train_features = np.array(train_features.loc[:, features])
-        rand_test_features = np.array(test_features.loc[:, features])
+        rand_train_features = train_features.loc[:, features]
+        rand_test_features = test_features.loc[:, features]
         fit_runtime, test_runtime, acc, _, _ = do_rf(
             rf_params,
-            None,
+            features,
             rand_train_features,
             train_labels,
             train_scores,
-            None,
+            train_classes,
             rand_test_features,
             test_labels,
             test_classes,

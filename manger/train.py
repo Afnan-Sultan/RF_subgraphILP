@@ -41,14 +41,14 @@ def train_gs_cv(drug_name: str, drug_info: dict, kwargs: Kwargs):
             f"=== Starting grid search cross validation for {drug_name} using {specified_model.upper()} model ==="
         )
         grid_results = grid_search_cv(
-            splits["train"][0],  # train features
-            train_labels,  # train labels
-            splits["train"][4],  # train classes
-            splits["train"][3],  # train scores
-            splits["test"][0],  # test features
-            test_labels,  # test labels
-            splits["test"][3],  # test classes
-            kwargs,
+            train_features=splits["train"][0],
+            train_labels=train_labels,
+            train_classes=splits["train"][4],
+            train_scores=splits["train"][3],
+            test_features=splits["test"][0],
+            test_labels=test_labels,
+            test_classes=splits["test"][3],
+            kwargs=kwargs,
         )
         if (
             grid_results is None

@@ -2,7 +2,6 @@ import logging
 from typing import Union
 
 import pandas as pd
-
 from manger.config import Kwargs
 from manger.models.subgraphilp_model import subgraphilp_model
 from manger.training.utils import calc_corr, get_num_features, random_samples
@@ -70,7 +69,7 @@ def feature_selection(
             model_features = train_features.columns.to_list()
 
     # select the new train and test features
-    if len(model_features) > 0:
+    if model_features is not None and len(model_features) > 0:
         if model == "random" and not kwargs.training.bias_rf:
             model_train_features = (
                 None  # it will be assigned later for each randomly selected subset

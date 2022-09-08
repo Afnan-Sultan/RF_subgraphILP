@@ -1,5 +1,4 @@
 import pandas as pd
-
 from manger.config import Kwargs
 from manger.models.random_forest import which_rf
 
@@ -44,11 +43,14 @@ def best_model(
         kwargs,
         output_preds=True,
     )
-    rf_results[kwargs.model.current_model] = [
-        fit_runtime,
-        test_runtime,
-        acc,
-        sorted_features,
-        num_features,
-    ]
-    return rf_results
+    if acc is None:
+        return None
+    else:
+        rf_results[kwargs.model.current_model] = [
+            fit_runtime,
+            test_runtime,
+            acc,
+            sorted_features,
+            num_features,
+        ]
+        return rf_results

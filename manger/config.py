@@ -157,16 +157,16 @@ class Kwargs(BaseModel):
     @cached_property
     def method(self):
         if self.training.regression:
-            return "_regression"
+            return "regression"
         else:
-            return "_classification"
+            return "classification"
 
     @cached_property
     def weight(self):
         if self.training.weight_samples:
             return "_weighted"
         else:
-            return ""
+            return "_notweighted"
 
     @cached_property
     def bias(self):
@@ -210,12 +210,12 @@ class Kwargs(BaseModel):
             len(self.model.model_names) == 1
             and self.model.model_names[0] == "subgraphilp"
         ):
-            folder = f"{self.training.de_method}"
+            folder = f"{self.training.de_method}_"
         else:
             folder = ""
         new_dir = os.path.join(
             self.output_dir,
-            f"{folder}{self.method}{self.weight}{self.bias}_{self.training.bias_pct}{self.target}"
+            f"{folder}{self.method}{self.weight}{self.bias}{self.target}"
             f"{self.sauron_rf}_"
             f"gt_{self.training.cell_lines_thresh}",
         )
@@ -224,10 +224,18 @@ class Kwargs(BaseModel):
 
     @cached_property
     def results_doc(self) -> str:
-        return os.path.join(
-            self.results_dir,
-            f"gcv{self.method}{self.weight}.jsonl",
-        )
+        if len(self.model.models) < 3 and (
+            "random" in self.model.models or "corr_num" in self.model.models
+        ):
+            return os.path.join(
+                self.results_dir,
+                f"gcv_numbered_{self.method}{self.weight}{self.bias}.jsonl",
+            )
+        else:
+            return os.path.join(
+                self.results_dir,
+                f"gcv_{self.method}{self.weight}{self.bias}.jsonl",
+            )
 
     @cached_property
     def subgraphilp_logger(self) -> str:
@@ -236,7 +244,7 @@ class Kwargs(BaseModel):
     @cached_property
     def subgraphilp_num_features_output_file(self) -> str:
         doc = os.path.join(self.results_dir, "subgraph_num_features.txt")
-        if self.data.output_num_feature:
+        if self.data.output_num_feature and not os.path.isfile(doc):
             with open(doc, "w") as temp:
                 temp.write("drug_name,num_features\n")
         return doc

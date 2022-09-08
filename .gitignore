@@ -3,6 +3,7 @@ venv
 .idea
 __pycache__
 results
+figures
 *temp*
 .ipynb_checkpoints
 notebooks
