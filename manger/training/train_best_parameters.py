@@ -31,7 +31,14 @@ def best_model(
         kwargs.data.output_num_feature = False
 
     rf_results = {}
-    fit_runtime, test_runtime, acc, sorted_features, num_features = which_rf(
+    (
+        fit_runtime,
+        test_runtime,
+        acc,
+        sorted_features,
+        num_features,
+        num_trees_features,
+    ) = which_rf(
         best_params,
         train_features,
         train_classes,
@@ -52,5 +59,6 @@ def best_model(
             acc,
             sorted_features,
             num_features,
+            num_trees_features,
         ]
         return rf_results

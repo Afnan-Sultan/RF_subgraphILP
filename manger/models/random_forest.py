@@ -15,7 +15,8 @@ from manger.training.weighting_samples import (
     calculate_linear_weights,
     calculate_simple_weights,
 )
-from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
+
+# from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
 
 
 def which_rf(
@@ -41,7 +42,14 @@ def which_rf(
     model = kwargs.model.current_model
     if kwargs.training.bias_rf:
         features = train_features.columns.to_list()
-        fit_runtime, test_runtime, acc, sorted_features, num_features = do_rf(
+        (
+            fit_runtime,
+            test_runtime,
+            acc,
+            sorted_features,
+            num_features,
+            num_trees_features,
+        ) = do_rf(
             rf_params,
             features,
             train_features,
@@ -59,7 +67,7 @@ def which_rf(
             train_features, train_classes, train_scores, kwargs, test_features
         )
         if to_rf is None:
-            return None, None, None, None, None
+            return None, None, None, None, None, None
 
         if model == "random":
             fit_runtime, test_runtime, acc = get_rand_rf_results(
@@ -74,9 +82,16 @@ def which_rf(
                 test_classes,
                 kwargs,
             )
-            sorted_features = num_features = None
+            sorted_features = num_features = num_trees_features = None
         else:
-            fit_runtime, test_runtime, acc, sorted_features, num_features = do_rf(
+            (
+                fit_runtime,
+                test_runtime,
+                acc,
+                sorted_features,
+                num_features,
+                num_trees_features,
+            ) = do_rf(
                 rf_params,
                 to_rf["features"],
                 to_rf["train_features"],
@@ -89,7 +104,14 @@ def which_rf(
                 kwargs,
                 output_preds,
             )
-    return fit_runtime, test_runtime, acc, sorted_features, num_features
+    return (
+        fit_runtime,
+        test_runtime,
+        acc,
+        sorted_features,
+        num_features,
+        num_trees_features,
+    )
 
 
 def do_rf(
@@ -160,24 +182,19 @@ def do_rf(
         test_labels, predictions, test_classes, kwrags.training.regression, output_file
     )
 
-    if features_names is not None:
-        if kwrags.training.regression:
-            col_name = "squared_error"
-        else:
-            col_name = "impurity"
-
+    if features_names is not None:  # not used/reported for the random model
+        col_name = "feature_importance"
+        features_importance = pd.DataFrame(
+            {"genes": features_names, col_name: rf.biased_feature_importance}
+        )  # biased_feature_importance will return the normal features in case of no bias
         if kwrags.training.bias_rf:
-            features_importance = pd.DataFrame(
-                {"genes": features_names, col_name: rf.biased_feature_importance}
-            )
-        else:
-            features_importance = pd.DataFrame(
-                {"genes": features_names, col_name: rf.feature_importances_}
-            )
-        if kwrags.training.bias_rf:
-            num_features = [len(tree.feature_names_in_) for tree in rf.estimators_]
+            num_trees_features = [
+                len(tree.feature_names_in_) for tree in rf.estimators_
+            ]
+            num_features = statistics.mean(num_trees_features)
         else:
             num_features = len(features_importance)
+            num_trees_features = num_features
         sorted_features = features_importance.sort_values(
             by=[col_name], ascending=False
         )[:100]
@@ -192,8 +209,15 @@ def do_rf(
             .drop(["genes", "GeneID"], axis=1)
         )
     else:
-        sorted_features = num_features = "not_reported"
-    return fit_runtime, test_runtime, acc, sorted_features, num_features
+        sorted_features = num_features = num_trees_features = "not_reported"
+    return (
+        fit_runtime,
+        test_runtime,
+        acc,
+        sorted_features,
+        num_features,
+        num_trees_features,
+    )
 
 
 def get_rand_rf_results(
@@ -226,7 +250,7 @@ def get_rand_rf_results(
     for features in features_list:
         rand_train_features = train_features.loc[:, features]
         rand_test_features = test_features.loc[:, features]
-        fit_runtime, test_runtime, acc, _, _ = do_rf(
+        fit_runtime, test_runtime, acc, _, _, _ = do_rf(
             rf_params,
             features,
             rand_train_features,

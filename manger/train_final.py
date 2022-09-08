@@ -72,6 +72,7 @@ def train_final(drugs_info: dict, kwargs: Kwargs):
                             "test_scores": output[2],
                             "features_importance": output[3],
                             "num_features": output[4],
+                            "num_tress_features": output[5],
                         }
             all_models[specified_model] = results[specified_model]
 

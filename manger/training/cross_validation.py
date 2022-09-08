@@ -1,6 +1,5 @@
 import logging
 
-import numpy as np
 import pandas as pd
 from manger.config import Kwargs
 from manger.models.random_forest import which_rf
@@ -28,17 +27,16 @@ def cross_validation(
     return: dict of results for each cross fold
     """
     model = kwargs.model.current_model
-    # train_labels = np.array(train_labels)
-    k = 0
-    cv_results = {}
 
     cv = StratifiedKFold(
         n_splits=kwargs.training.num_kfold,
         shuffle=True,
         random_state=kwargs.training.random_state,
     )
+    cv_results = {}
+    k = 0  # cross validation counter
     for train_index, test_index in cv.split(train_features, train_classes):
-        kwargs.training.cv_idx = k
+        kwargs.training.cv_idx = k  # globalize as it will be used for namings afterward
 
         # identify labels for classification and scores for regression
         cv_train_labels = train_labels.iloc[train_index]
@@ -48,13 +46,13 @@ def cross_validation(
         ]  # to pass for correlation models
 
         cv_test_labels = train_labels.iloc[test_index]
-        cv_test_classes = train_classes.iloc[test_index]  # .reset_index(drop=True)
+        cv_test_classes = train_classes.iloc[test_index]
 
         # get train and test splits
         cv_train_features = train_features.iloc[train_index]
         cv_test_features = train_features.iloc[test_index]
 
-        fit_runtime, test_runtime, acc, sorted_features, _ = which_rf(
+        fit_runtime, test_runtime, acc, sorted_features, _, _ = which_rf(
             rf_params=rf_params,
             train_features=cv_train_features,
             train_classes=cv_train_classes,
@@ -101,12 +99,13 @@ def cross_validation(
             )
         k += 1
     kwargs.training.cv_idx = None
+
     if model in cv_results:
         cv_results[model]["stats"] = splits_stats(
             cv_results[model], kwargs.training.regression
         )
         return cv_results
-    else:
+    else:  # thresholded correlation doesn't manage to recruit features always
         return None
 
 
@@ -120,6 +119,8 @@ def get_rand_cv_results(
     out_log: bool,
 ):
     """
+    independent function for the random model, to average the performance and return single values as the other models
+
     rf_params = dict of parameters to be passed to sklearn.RandomForestRegressor/Classifier
     train_features = pd.DataFrame(..., columns=[genes: List[Any], index=[cell_lines: List[int]])
     train_labels = pd.Series(..., columns=["ic_50" if regression else "labels"], index=[cell_lines: List[int]])
