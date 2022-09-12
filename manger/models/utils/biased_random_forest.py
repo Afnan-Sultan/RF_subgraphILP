@@ -1,6 +1,5 @@
 import json
 import os.path
-import random
 import threading
 import warnings
 from typing import List, Union
@@ -35,256 +34,6 @@ from sklearn.utils import check_random_state, compute_sample_weight
 from sklearn.utils.fixes import delayed
 from sklearn.utils.multiclass import type_of_target
 from sklearn.utils.validation import _check_sample_weight, check_is_fitted
-
-
-def output_tree_info(
-    kwargs, tree_idx, train_classes, indices, biased_features, importance=None
-):
-    if kwargs.training.gcv_idx is None and kwargs.training.cv_idx is None:
-        out_path = os.path.join(
-            kwargs.intermediate_output, kwargs.data.drug_name, "rf_trees_info"
-        )
-        os.makedirs(out_path, exist_ok=True)
-        out_file = os.path.join(
-            out_path,
-            "best_model"
-            # f"{kwargs.model.current_model}_trees_indices_features{gcv_idx}{cv_idx}.jsonl",
-        )
-        if not os.path.isfile(out_file):
-            with open(out_file, "w"):
-                pass
-
-        with open(out_file, "a") as tree_output:
-            tree_output.write(
-                json.dumps(
-                    {
-                        tree_idx: {
-                            "cell_lines": train_classes.iloc[indices].index.to_list(),
-                            "features": biased_features,
-                            "features_importance": importance,
-                        }
-                    },
-                    indent=4,
-                    cls=NewJsonEncoder,
-                )
-            )
-            tree_output.write("\n")
-
-
-def leaf_class_assignment(tree, train_df, classes):
-    # identify the leaf node for each sample
-    samples_assignment = tree.apply(train_df)
-
-    # storage purposes - store the ids of cell lines falling into a leaf
-    leaf_samples = {}
-    # storage purposes - store the classes of the cell lines falling into a leaf
-    leaf_classes = {}
-
-    # store the leaf information, samples true ids (i.e., cell lines IDs) and samples true classes (i.e., 0/1)
-    for sample_idx, leaf in enumerate(samples_assignment):
-        if leaf in leaf_samples:
-            leaf_samples[leaf].append(tree.bootstrapped_samples[sample_idx])
-            leaf_classes[leaf].append(classes.iloc[sample_idx])
-        else:
-            leaf_samples[leaf] = [tree.bootstrapped_samples[sample_idx]]
-            leaf_classes[leaf] = [classes.iloc[sample_idx]]
-
-    # sort classes (sensitive followed by resistance) fo easier visualization when needed
-    leaf_classes = {
-        leaf: sorted(val, reverse=True) for leaf, val in leaf_classes.items()
-    }
-
-    # fetch the corresponding class for each leaf by majority vote over the `leaf_classes`
-    leaf_assignments = {
-        leaf: 1 if samples_classes.count(1) >= samples_classes.count(0) else 0
-        for leaf, samples_classes in leaf_classes.items()
-    }
-    return leaf_samples, leaf_classes, leaf_assignments
-
-
-def apply_sauron(model, test_df):
-    """to perform regression only on trees that can predict the sensitive class"""
-    samples_trees_distribution = {}
-    for tree_idx, tree in enumerate(model.estimators_):
-        # identify the leaf node for each sample
-        samples_leaf_assignment = tree.apply(test_df)
-
-        # fetch the class of each leaf node (hence, the class of the sample) as calculated during fitting
-        samples_leaf_classes = [
-            tree.leaf_class_assignments[leaf] for leaf in samples_leaf_assignment
-        ]
-
-        # store the index of the current tree to each sample as either sensitive or resistant tree,
-        # based on leaf class assignment
-        for sample_idx, class_assignment in enumerate(samples_leaf_classes):
-            if class_assignment == 1:
-                key = "sensitive_trees"
-                other_key = "resistant_trees"
-            else:
-                key = "resistant_trees"
-                other_key = "sensitive_trees"
-            if sample_idx in samples_trees_distribution:
-                samples_trees_distribution[sample_idx][key].append(tree_idx)
-            else:
-                samples_trees_distribution[sample_idx] = {
-                    key: [tree_idx],
-                    other_key: [],
-                }
-
-    # if a sample has majority sensitive trees, restrict the model regressors to these trees. Otherwise, use all trees
-    samples_trees = {}
-    for sample_idx, trees_dist in samples_trees_distribution.items():
-        if len(trees_dist["sensitive_trees"]) >= len(trees_dist["resistant_trees"]):
-            samples_trees[sample_idx] = trees_dist["sensitive_trees"]
-        else:
-            samples_trees[sample_idx] = [idx for idx in range(len(model.estimators_))]
-
-    return samples_trees
-
-
-def biased_feature_selection(
-    X: np.ndarray,
-    train_classes: pd.Series,
-    train_scores: pd.Series,
-    features_names: List,
-    indices: np.ndarray,
-    kwargs: Kwargs,
-    tree_idx,
-):
-    """
-    X = np.array of all cell_lines for a drug
-    train_classes = pd.Series(..., columns=["labels"], index=[cell_lines: List[int]])
-    train_scores = pd.Series(..., columns=["ic_50"], index=[cell_lines: List[int]])
-    features_names: List of genes
-    indices: List of cell_lines indices
-    return: np.array of bootstrapped cell_lines and selected features(i.e., genes)
-    """
-    # TODO: maybe, make an assertion between y and train_classes/scores
-    cell_lines = train_classes.iloc[indices].index
-    X_df = pd.DataFrame(X, columns=features_names)
-    bootstrapped_X = pd.DataFrame(X[indices], columns=features_names, index=cell_lines)
-
-    to_tree = feature_selection(
-        bootstrapped_X,
-        train_classes,
-        train_scores,
-        kwargs,
-        tree_idx=tree_idx,
-    )
-    # if no features were selected (e.g., in case of thresholded correlation) revert to random selection
-    if to_tree is None:
-        warnings.warn(
-            f"{kwargs.model.current_model} - no features selected. using the whole features instead"
-        )
-        return np.array(X_df), features_names
-    else:
-        return np.array(X_df.loc[:, to_tree["features"]]), to_tree["features"]
-
-
-def _parallel_build_trees(
-    tree,
-    bootstrap,
-    X,
-    y,
-    sample_weight,
-    tree_idx,
-    n_trees,
-    kwargs: Kwargs,
-    train_classes,
-    train_scores,
-    features_name,
-    verbose=0,
-    class_weight=None,
-    n_samples_bootstrap=None,
-):
-    """
-    Private function used to fit a single tree in parallel."""
-    if verbose > 1:
-        print("building tree %d of %d" % (tree_idx + 1, n_trees))
-
-    if bootstrap:
-        n_samples = X.shape[0]
-        if sample_weight is None:
-            curr_sample_weight = np.ones((n_samples,), dtype=np.float64)
-        else:
-            curr_sample_weight = sample_weight.copy()
-
-        indices = _generate_sample_indices(
-            tree.random_state, n_samples, n_samples_bootstrap
-        )
-        tree.bootstrapped_samples = train_classes.iloc[indices].index.to_list()
-
-        # reduce features to those reported from the method of interest
-        biased_features = features_name
-        if kwargs.training.bias_rf:
-            if random.random() < kwargs.training.bias_pct:
-                # print(f"tree_{tree_idx}: threshold met")
-                X, biased_features = biased_feature_selection(
-                    X,
-                    train_classes,
-                    train_scores,
-                    features_name,
-                    indices,
-                    kwargs,
-                    tree_idx,
-                )
-
-        sample_counts = np.bincount(indices, minlength=n_samples)
-        curr_sample_weight *= sample_counts
-
-        if class_weight == "subsample":
-            with catch_warnings():
-                simplefilter("ignore", DeprecationWarning)
-                curr_sample_weight *= compute_sample_weight("auto", y, indices=indices)
-        elif class_weight == "balanced_subsample":
-            curr_sample_weight *= compute_sample_weight("balanced", y, indices=indices)
-
-        tree.fit(X, y, sample_weight=curr_sample_weight, check_input=False)
-
-        if kwargs.training.output_trees_info:
-            output_tree_info(
-                kwargs,
-                tree_idx,
-                train_classes,
-                indices,
-                biased_features,
-                tree.feature_importances_,
-            )
-
-        # re-set some properties to make sure they match our end goal purpose
-        tree.feature_names_in_ = biased_features
-        if kwargs.training.bias_rf:
-            importance = np.zeros(len(features_name))
-            features_idx = [
-                features_name.tolist().index(feature)
-                for feature in tree.feature_names_in_
-            ]
-            importance[features_idx] = tree.feature_importances_
-            tree.biased_feature_importance = importance
-            output_tree_info(
-                kwargs,
-                tree_idx,
-                train_classes,
-                indices,
-                biased_features,
-                importance,
-            )
-        else:
-            tree.biased_feature_importance = tree.feature_importances_
-
-        # identify leaf class if sauron is required during regression
-        if kwargs.training.regression and kwargs.training.sauron:
-            (
-                tree.leaf_samples,
-                tree.leaf_classes,
-                tree.leaf_class_assignments,
-            ) = leaf_class_assignment(
-                tree, pd.DataFrame(X, columns=tree.feature_names_in_), train_classes
-            )
-    else:
-        tree.fit(X, y, sample_weight=sample_weight, check_input=False)
-
-    return tree
 
 
 class BiasedRandomForestRegressor(ForestRegressor):
@@ -504,12 +253,227 @@ class BiasedRandomForestClassifier(ForestClassifier):
         return biased_feature_importances_(self)
 
 
+def output_tree_info(
+    kwargs, tree_idx, train_classes, indices, biased_features, importance=None
+):
+    if kwargs.training.gcv_idx is None and kwargs.training.cv_idx is None:
+        out_path = os.path.join(
+            kwargs.intermediate_output, kwargs.data.drug_name, "rf_trees_info"
+        )
+        os.makedirs(out_path, exist_ok=True)
+        out_file = os.path.join(
+            out_path,
+            "best_model"
+            # f"{kwargs.model.current_model}_trees_indices_features{gcv_idx}{cv_idx}.jsonl",
+        )
+        if not os.path.isfile(out_file):
+            with open(out_file, "w"):
+                pass
+
+        with open(out_file, "a") as tree_output:
+            tree_output.write(
+                json.dumps(
+                    {
+                        tree_idx: {
+                            "cell_lines": train_classes.iloc[indices].index.to_list(),
+                            "features": biased_features,
+                            "features_importance": importance,
+                        }
+                    },
+                    indent=4,
+                    cls=NewJsonEncoder,
+                )
+            )
+            tree_output.write("\n")
+
+
+def leaf_class_assignment(tree, train_df, classes):
+    """assign a class for the RF_Regressor leafs after fitting, based on pre-defined samples' classification"""
+
+    # identify the leaf node for each sample
+    samples_assignment = tree.apply(train_df)
+
+    # storage purposes - store the ids of cell lines falling into a leaf
+    leaf_samples = {}
+    # storage purposes - store the classes of the cell lines falling into a leaf
+    leaf_classes = {}
+
+    # store the leaf information, samples true ids (i.e., cell lines IDs) and samples true classes (i.e., 0/1)
+    for sample_idx, leaf in enumerate(samples_assignment):
+        if leaf in leaf_samples:
+            leaf_samples[leaf].append(tree.bootstrapped_samples[sample_idx])
+            leaf_classes[leaf].append(classes.iloc[sample_idx])
+        else:
+            leaf_samples[leaf] = [tree.bootstrapped_samples[sample_idx]]
+            leaf_classes[leaf] = [classes.iloc[sample_idx]]
+
+    # sort classes (sensitive followed by resistance) fo easier visualization when needed
+    leaf_classes = {
+        leaf: sorted(val, reverse=True) for leaf, val in leaf_classes.items()
+    }
+
+    # fetch the corresponding class for each leaf by majority vote over the `leaf_classes`
+    leaf_assignments = {
+        leaf: 1 if samples_classes.count(1) >= samples_classes.count(0) else 0
+        for leaf, samples_classes in leaf_classes.items()
+    }
+    return leaf_samples, leaf_classes, leaf_assignments
+
+
+def biased_feature_selection(
+    X: np.ndarray,
+    train_classes: pd.Series,
+    train_scores: pd.Series,
+    features_names: List,
+    indices: np.ndarray,
+    kwargs: Kwargs,
+    tree_idx,
+):
+    """
+    X = np.array of all cell_lines for a drug
+    train_classes = pd.Series(..., columns=["labels"], index=[cell_lines: List[int]])
+    train_scores = pd.Series(..., columns=["ic_50"], index=[cell_lines: List[int]])
+    features_names: List of genes
+    indices: List of cell_lines indices
+    return: np.array of bootstrapped cell_lines and selected features(i.e., genes)
+    """
+    cell_lines = train_classes.iloc[indices].index
+
+    # to extract features while preserving X
+    X_df = pd.DataFrame(X, columns=features_names)
+
+    # to account for repeated samples while applying feature selection
+    bootstrapped_X = pd.DataFrame(X[indices], columns=features_names, index=cell_lines)
+    to_tree = feature_selection(
+        bootstrapped_X,
+        train_classes,
+        train_scores,
+        kwargs,
+        tree_idx=tree_idx,
+    )
+
+    # if no features were selected (e.g., in case of thresholded correlation) revert to random selection
+    if to_tree is None:
+        warnings.warn(
+            f"{kwargs.model.current_model} - no features selected. using the whole features instead"
+        )
+        return np.array(X_df), features_names
+    else:
+        return np.array(X_df.loc[:, to_tree["features"]]), to_tree["features"]
+
+
+def bias_feature_importance(tree, features_name):
+    """store the feature_importances for the features of the tree and set the remaining feature_importance to zero"""
+    importance = np.zeros(len(features_name))
+    tree_features_indices = [
+        features_name.tolist().index(feature)  # get the index of the current feature
+        for feature in tree.feature_names_in_
+    ]
+    importance[tree_features_indices] = tree.feature_importances_
+    return importance
+
+
+def _parallel_build_trees(
+    tree,
+    bootstrap,
+    X,
+    y,
+    sample_weight,
+    tree_idx,
+    n_trees,
+    kwargs: Kwargs,
+    train_classes,
+    train_scores,
+    features_name,
+    verbose=0,
+    class_weight=None,
+    n_samples_bootstrap=None,
+):
+    """
+    Private function used to fit a single tree in parallel."""
+    if verbose > 1:
+        print("building tree %d of %d" % (tree_idx + 1, n_trees))
+
+    if bootstrap:
+        n_samples = X.shape[0]
+        if sample_weight is None:
+            curr_sample_weight = np.ones((n_samples,), dtype=np.float64)
+        else:
+            curr_sample_weight = sample_weight.copy()
+
+        indices = _generate_sample_indices(
+            tree.random_state, n_samples, n_samples_bootstrap
+        )
+        tree.bootstrapped_samples = train_classes.iloc[indices].index.to_list()
+
+        biased_features = features_name  # in case of no biasing, report all features
+
+        # reduce features to those reported from the method of interest
+        if kwargs.training.bias_rf:
+            X, biased_features = biased_feature_selection(
+                X,
+                train_classes,
+                train_scores,
+                features_name,
+                indices,
+                kwargs,
+                tree_idx,
+            )
+
+        sample_counts = np.bincount(indices, minlength=n_samples)
+        curr_sample_weight *= sample_counts
+
+        if class_weight == "subsample":
+            with catch_warnings():
+                simplefilter("ignore", DeprecationWarning)
+                curr_sample_weight *= compute_sample_weight("auto", y, indices=indices)
+        elif class_weight == "balanced_subsample":
+            curr_sample_weight *= compute_sample_weight("balanced", y, indices=indices)
+
+        tree.fit(X, y, sample_weight=curr_sample_weight, check_input=False)
+
+        # re-set some properties to make sure they match our end goal
+        tree.feature_names_in_ = biased_features
+        if kwargs.training.bias_rf:
+            importance = bias_feature_importance(tree, features_name)
+            tree.biased_feature_importance = importance
+            output_tree_info(
+                kwargs,
+                tree_idx,
+                train_classes,
+                indices,
+                biased_features,
+                importance,
+            )
+        else:
+            tree.biased_feature_importance = tree.feature_importances_
+
+        # identify leaf class if sauron is required during regression
+        if kwargs.training.regression and kwargs.training.sauron:
+            (
+                tree.leaf_samples,
+                tree.leaf_classes,
+                tree.leaf_class_assignments,
+            ) = leaf_class_assignment(
+                tree, pd.DataFrame(X, columns=tree.feature_names_in_), train_classes
+            )
+    else:
+        tree.fit(X, y, sample_weight=sample_weight, check_input=False)
+
+    return tree
+
+
 def biased_fit(
     model: Union[BiasedRandomForestRegressor, BiasedRandomForestClassifier],
     X,
     y,
     sample_weight=None,
 ):
+    """
+    the same fit function as in sklearn random forest, except implementing our own _parallel_build_trees function with
+    the additional features
+    """
+
     # Validate or convert input data
     if issparse(y):
         raise ValueError("sparse multilabel-indicator for y is not supported.")
@@ -704,6 +668,9 @@ def biased_fit(
 
 
 def biased_feature_importances_(model):
+    """
+    applying same function as the model's property, but setting all non-used features to importance=0
+    """
     check_is_fitted(model)
 
     all_importances = Parallel(n_jobs=model.n_jobs, prefer="threads")(
@@ -719,7 +686,50 @@ def biased_feature_importances_(model):
     return all_importances / np.sum(all_importances)
 
 
-def predict_sample(X_df, sample_idx, trees_indices, model):
+def apply_sauron(model, test_df):
+    """
+    to perform regression only on trees that can predict the sensitive class
+    """
+
+    samples_trees_distribution = {}
+    for tree_idx, tree in enumerate(model.estimators_):
+        # identify the leaf node for each sample
+        samples_leaf_assignment = tree.apply(test_df)
+
+        # fetch the class of each leaf node (hence, the class of the sample) as calculated during fitting
+        samples_leaf_classes = [
+            tree.leaf_class_assignments[leaf] for leaf in samples_leaf_assignment
+        ]
+
+        # store the index of the current tree to each sample as either sensitive or resistant tree,
+        # based on leaf class assignment
+        for sample_idx, class_assignment in enumerate(samples_leaf_classes):
+            if class_assignment == 1:
+                key = "sensitive_trees"
+                other_key = "resistant_trees"
+            else:
+                key = "resistant_trees"
+                other_key = "sensitive_trees"
+            if sample_idx in samples_trees_distribution:
+                samples_trees_distribution[sample_idx][key].append(tree_idx)
+            else:
+                samples_trees_distribution[sample_idx] = {
+                    key: [tree_idx],
+                    other_key: [],
+                }
+
+    # if a sample has majority sensitive trees, restrict the model regressors to these trees. Otherwise, use all trees
+    samples_trees = {}
+    for sample_idx, trees_dist in samples_trees_distribution.items():
+        if len(trees_dist["sensitive_trees"]) >= len(trees_dist["resistant_trees"]):
+            samples_trees[sample_idx] = trees_dist["sensitive_trees"]
+        else:
+            samples_trees[sample_idx] = [idx for idx in range(len(model.estimators_))]
+
+    return samples_trees
+
+
+def predict_sample(X_df, sample_idx, trees_indices, model, y_hat):
     sample_estimates = 0
     for tree_idx in trees_indices:
         tree = model.estimators_[tree_idx]
@@ -727,8 +737,7 @@ def predict_sample(X_df, sample_idx, trees_indices, model):
             X_df.iloc[sample_idx][tree.feature_names_in_].to_frame().transpose()
         )
         sample_estimates += tree.predict(single_sample)
-    sample_estimates = sample_estimates / len(trees_indices)
-    return sample_idx, sample_estimates
+    y_hat[sample_idx] = sample_estimates / len(trees_indices)
 
 
 def predict_sauron(model, X):
@@ -747,24 +756,6 @@ def predict_sauron(model, X):
     y_hat = np.zeros((X.shape[0]), dtype=np.float64)
 
     # predict each sample with respect to its corresponding trees, then average results
-
-    # Parallel loop
-    samples_preds = Parallel(
-        n_jobs=model.n_jobs, verbose=model.verbose, require="sharedmem"
-    )(
-        delayed(predict_sample)(X_df, sample_idx, trees_indices, model)
-        for sample_idx, trees_indices in samples_trees.items()
-    )
-    for pred in samples_preds:
-        y_hat[pred[0]] = pred[1]
-    # for sample_idx, trees_indices in samples_trees.items():
-    #     sample_estimates = 0
-    #     for tree_idx in trees_indices:
-    #         tree = model.estimators_[tree_idx]
-    #         single_sample = (
-    #             X_df.iloc[sample_idx][tree.feature_names_in_].to_frame().transpose()
-    #         )
-    #         sample_estimates += tree.predict(single_sample)
-    #     y_hat[sample_idx] = sample_estimates / len(trees_indices)
-
+    for sample_idx, trees_indices in samples_trees.items():
+        predict_sample(X_df, sample_idx, trees_indices, model, y_hat)
     return y_hat

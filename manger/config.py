@@ -25,7 +25,7 @@ class TrainingConfig(BaseModel):
     # RF parameters
     max_features: Optional[Union[str, List[Any]]]  # TODO: change
     min_samples_leaf: Union[int, List[int]] = 20
-    n_estimators: Optional[int] = 500
+    n_estimators: Optional[Union[int, List[int]]] = 500
     n_jobs: Optional[int] = 3
     random_state: Optional[int] = 42
     bias_rf: bool
@@ -49,10 +49,16 @@ class TrainingConfig(BaseModel):
             range_ = self.min_samples_leaf
             self.min_samples_leaf = list(range(range_[0], range_[1], range_[2]))
 
+        if isinstance(self.n_estimators, int):
+            self.n_estimators = [self.n_estimators]
+        elif len(self.n_estimators) == 3:
+            range_ = self.n_estimators
+            self.n_estimators = list(range(range_[0], range_[1], range_[2]))
+
         rf_hyperparameters = {
             "max_features": self.max_features,
             "min_samples_leaf": self.min_samples_leaf,  # restrict depth
-            "n_estimators": [self.n_estimators],
+            "n_estimators": self.n_estimators,
             "random_state": [self.random_state],
             "n_jobs": [self.n_jobs],
         }
