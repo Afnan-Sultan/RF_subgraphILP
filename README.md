@@ -13,13 +13,13 @@
   * `manger/training` contains the code for training (e.g., parameter grid search, cross validation, ...etc.)
   * `manager/plots` contains the code to generate analysis plots (e.g., performance, runtime, splits, ...etc.)
   * `manager/scoring_metrics` contains the code used for evaluation
-  * `manager/supplementary` contains the codes used to generate stats/figure outside the results folder
+  * `manager/supplementary` contains the codes used to generate stats/figures outside the results folder
   * `manager/train.py` is the script called for training with grid search cross validation
   * `manager/train_final.py` is used to train a single model with no cross validation
   * `manager/config.py` includes the different parameters used for training
   
 
-* The `data` folder contains all data used for the project (except the gene matrix for size constraints, which can be found at ??)
+* The `data` folder contains all data used for the project (except the gene matrix  file for size constraints, which can be found at ??)
 
 ## Model Training
 * `config.json` is an example for parameters file to be passed
@@ -28,6 +28,6 @@
   * `$ python3 cli.py train config.json`
 * To train and test the model with fixed parameters list directly
   * `$ python3 cli.py test config.json`
-* The results are exported to a new file `results`
+* The results are exported to a new folder `results`
 * The results can be plotted using `manger/plots/main.py` where the figures will be exported to `figures` folder
 
