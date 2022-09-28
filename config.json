@@ -1,0 +1,42 @@
+{
+  "output_dir": "results_temp",
+  "training": {
+    "random_state": 42,
+    "max_features": ["sqrt"],
+    "min_samples_leaf": [16],
+    "n_estimators": 10,
+    "n_jobs": 1,
+    "bias_rf": false,
+    "sauron": false,
+    "bias_pct": 1,
+    "num_kfold": 5,
+    "num_knodes": "10-25",
+    "target_root_node": false,
+    "mapper_path": "../subgraph/build/mapper",
+    "comp_path": "../subgraph/build/compOptSubGraph",
+    "de_method": "zscore",
+    "corr_thresh": 0.4,
+    "corr_thresh_sub": 0.05,
+    "num_random_samples": 25,
+    "weight_samples": true,
+    "simple_weight": true,
+    "regression": true,
+    "cell_lines_thresh":800
+  },
+  "model": {
+    "models": ["corr_thresh"]
+  },
+  "data": {
+    "gene_matrix_file": "data/gdsc/GDSC_RMA_proc_gene_expression_preprocessed_replicate_removed_8_10_2020.txt",
+    "ic50_gdsc_file":"data/gdsc/IC50_Matrix_GDSC2_25Feb2020_31_12_2020_COSMIC_IDs.csv",
+    "discretized_gdsc_file": "data/gdsc/Discretized_Matrix_GDSC2_25Feb2020_3_11_2021_COSMIC_IDs.csv",
+    "thresholds_file": "data/gdsc/Thresholds_GDSC2_Calculated_Using_LOBICO_Method_29_01_2021.csv",
+    "drugs_targets_file": "data/gdsc/drugs_targets.txt",
+    "kegg_hsa_file": "data/kegg/kegg_hsa.sif",
+    "node_entrez_file": "data/kegg/kegg_hsa.Entrez-Gene.na",
+    "aggregate_file": "data/kegg/kegg_hsa.aggregate.na",
+    "ctd_file": "data/ctd/CTD_genes_pathways.csv",
+    "drug_subset": 1,
+    "num_features_file": "results/zscore_regression_weighted_1_gt_800/subgraph_num_features.txt"
+  }
+}
