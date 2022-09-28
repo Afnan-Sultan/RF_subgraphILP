@@ -75,6 +75,7 @@ class TrainingConfig(BaseModel):
 
     # correlation parameters
     corr_thresh: float = 0.3
+    corr_thresh_sub = 0.05  # the percentage of features to select if no features were found at the given threshold
 
     # random model parameters
     num_random_samples: int = 10

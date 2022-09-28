@@ -61,19 +61,17 @@ def train_final(drugs_info: dict, kwargs: Kwargs):
                     splits["test"][3],  # test classes
                     kwargs,
                 )
-                if test_results is None:
-                    results[specified_model][idx] = None
-                else:
-                    for model, output in test_results.items():
-                        results[model][idx] = {
-                            "params": rf_params,
-                            "train_runtime": output[0],
-                            "test_runtime": output[1],
-                            "test_scores": output[2],
-                            "features_importance": output[3],
-                            "num_features": output[4],
-                            "num_tress_features": output[5],
-                        }
+
+                for model, output in test_results.items():
+                    results[model][idx] = {
+                        "params": rf_params,
+                        "train_runtime": output[0],
+                        "test_runtime": output[1],
+                        "test_scores": output[2],
+                        "features_importance": output[3],
+                        "num_features": output[4],
+                        "num_tress_features": output[5],
+                    }
             all_models[specified_model] = results[specified_model]
 
         with open(test_results_file, "a") as convert_file:

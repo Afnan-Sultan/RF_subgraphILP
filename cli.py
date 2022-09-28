@@ -5,14 +5,12 @@ import warnings
 
 import typer as typer
 from joblib import Parallel, delayed
+from tqdm import tqdm
 
 from manger.config import Kwargs
 from manger.data.filter_drugs import filter_drugs
 from manger.train import train_gs_cv
 from manger.train_final import train_final
-
-# from tqdm import tqdm
-
 
 app = typer.Typer()
 
@@ -69,14 +67,16 @@ def train(
     else:
         drugs_info = selected_drugs_info
 
-    Parallel(n_jobs=kwargs.training.n_jobs, verbose=10)(  # TODO: change n_jobs
-        delayed(train_gs_cv)(drug_name, data_split, kwargs.copy(deep=True))
-        for drug_name, data_split in drugs_info.items()
-    )
-    # for drug_name, data_split in tqdm(
-    #     selected_drugs_info.items(), desc="training models per drug..."
-    # ):
-    #     train_gs_cv(drug_name, data_split, kwargs)
+    if kwargs.training.n_jobs > 1:
+        Parallel(n_jobs=kwargs.training.n_jobs, verbose=10)(  # TODO: change n_jobs
+            delayed(train_gs_cv)(drug_name, data_split, kwargs.copy(deep=True))
+            for drug_name, data_split in drugs_info.items()
+        )
+    else:
+        for drug_name, data_split in tqdm(
+            selected_drugs_info.items(), desc="training models per drug..."
+        ):
+            train_gs_cv(drug_name, data_split, kwargs)
 
 
 @app.command()
@@ -112,5 +112,5 @@ def test(
 
 
 if __name__ == "__main__":
-    train("config_test_lin.json")
+    test("config.json")
     app()

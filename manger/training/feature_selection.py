@@ -1,10 +1,11 @@
 import logging
+from math import ceil
 from typing import Union
 
 import pandas as pd
 from manger.config import Kwargs
 from manger.models.subgraphilp_model import subgraphilp_model
-from manger.training.utils import calc_corr, get_num_features, random_samples
+from manger.training.utils import get_num_features, random_samples
 
 logger = logging.getLogger(__name__)
 
@@ -42,7 +43,9 @@ def feature_selection(
             num_features = None
 
         if model.startswith("corr"):
-            corr_sorted_scores = calc_corr(train_features.copy(deep=True), train_scores)
+            corr_sorted_scores = (
+                train_features.corrwith(train_scores).sort_values().abs()
+            )
             if (
                 model == "corr_num"
             ):  # using the top-k number of correlated features to ic50. k_corr = k_ILP
@@ -51,6 +54,14 @@ def feature_selection(
                 model_features = corr_sorted_scores[
                     corr_sorted_scores.values >= kwargs.training.corr_thresh
                 ].index.to_list()
+                if len(model_features) == 0:
+                    logger.info(
+                        f" --> No features with correlation higher than {kwargs.training.corr_thresh}"
+                    )
+                    num_features = ceil(
+                        kwargs.training.corr_thresh_sub * len(corr_sorted_scores)
+                    )
+                    model_features = corr_sorted_scores[:num_features].index.to_list()
 
         elif model == "random":  # using k randomly selected features. k_random = k_ILP
             if kwargs.training.bias_rf:
@@ -69,31 +80,28 @@ def feature_selection(
             model_features = train_features.columns.to_list()
 
     # select the new train and test features
-    if model_features is not None and len(model_features) > 0:
-        if model == "random" and not kwargs.training.bias_rf:
-            model_train_features = (
+    if model == "random" and not kwargs.training.bias_rf:
+        model_train_features = (
+            None  # it will be assigned later for each randomly selected subset
+        )
+    else:
+        model_train_features = train_features.loc[:, model_features]
+
+    if test_features is None:  # subset train features only
+        return {"features": model_features, "train_features": model_train_features}
+    else:  # subset both train and test features because we will be doing feature selection without biasing rf.
+        # should be invoked only when NOT biasing random forest
+        assert not kwargs.training.bias_rf
+
+        if model == "random":
+            model_test_features = (
                 None  # it will be assigned later for each randomly selected subset
             )
         else:
-            model_train_features = train_features.loc[:, model_features]
+            model_test_features = test_features.loc[:, model_features]
 
-        if test_features is None:  # subset train features only
-            return {"features": model_features, "train_features": model_train_features}
-        else:  # subset both train and test features because we will be doing feature selection only.
-            # should be invoked only when NOT biasing random forest
-            assert not kwargs.training.bias_rf
-
-            if model == "random":
-                model_test_features = (
-                    None  # it will be assigned later for each randomly selected subset
-                )
-            else:
-                model_test_features = test_features.loc[:, model_features]
-
-            return {
-                "features": model_features,
-                "train_features": model_train_features,
-                "test_features": model_test_features,
-            }
-    else:
-        return None
+        return {
+            "features": model_features,
+            "train_features": model_train_features,
+            "test_features": model_test_features,
+        }

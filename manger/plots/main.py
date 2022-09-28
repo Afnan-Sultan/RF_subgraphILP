@@ -88,7 +88,7 @@ def plot_drugs_acc_subsets(
 
 
 if __name__ == "__main__":
-    results_path_ = "../results"
+    results_path_ = "../../results"
 
     weighted = False
     simple_weight = True
@@ -112,7 +112,7 @@ if __name__ == "__main__":
         dir2 = "targeted"
     else:
         dir2 = "not_targeted"
-    output_dir = os.path.join("..", "figures", dir0, dir1, dir2)
+    output_dir = os.path.join("..", "..", "figures", dir0, dir1, dir2)
 
     # load results
     drugs_dict_ = aggregate_result_files(results_path_, condition_, targeted_)

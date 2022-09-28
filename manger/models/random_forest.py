@@ -66,8 +66,6 @@ def which_rf(
         to_rf = feature_selection(
             train_features, train_classes, train_scores, kwargs, test_features
         )
-        if to_rf is None:
-            return None, None, None, None, None, None
 
         if model == "random":
             fit_runtime, test_runtime, acc = get_rand_rf_results(
@@ -141,14 +139,7 @@ def do_rf(
         num_features: Union[int, None]
     """
 
-    if kwrags.training.weight_samples:
-        if kwrags.training.simple_weight:
-            weights = calculate_simple_weights(kwrags.data.drug_threshold, train_scores)
-        else:
-            weights = calculate_linear_weights(kwrags.data.drug_threshold, train_scores)
-    else:
-        weights = None
-
+    # instantiate a model
     if kwrags.training.regression:
         # rf = RandomForestRegressor(**rf_params)
         rf = BiasedRandomForestRegressor(
@@ -161,16 +152,27 @@ def do_rf(
             kwrags, train_classes, train_scores, **rf_params
         )
 
+    # calculate sample weights
+    if kwrags.training.weight_samples:
+        if kwrags.training.simple_weight:
+            weights = calculate_simple_weights(kwrags.data.drug_threshold, train_scores)
+        else:
+            weights = calculate_linear_weights(kwrags.data.drug_threshold, train_scores)
+    else:
+        weights = None
+
+    # Fit
     start = time.time()
     rf.fit(train_features, train_labels, sample_weight=weights)
     fit_runtime = time.time() - start
 
-    # Use the forest's predict method on the test data
+    # Predict
     start = time.time()
     predictions = rf.predict(test_features)
     test_runtime = time.time() - start
 
     if output_preds:
+        # output prediction in case later analysis are needed. Only used for best model.
         output_file = os.path.join(kwrags.intermediate_output, kwrags.data.drug_name)
         os.makedirs(output_file, exist_ok=True)
         output_file = os.path.join(
@@ -178,26 +180,23 @@ def do_rf(
         )
     else:
         output_file = None
+
+    # evaluation metrics
     acc = calc_accuracy(
         test_labels, predictions, test_classes, kwrags.training.regression, output_file
     )
 
-    if features_names is not None:  # not used/reported for the random model
+    # further analysis to be outputted
+    if features_names is not None:
+        # retrieve non-zero feature_importance
         col_name = "feature_importance"
         features_importance = pd.DataFrame(
             {"genes": features_names, col_name: rf.biased_feature_importance}
-        )  # biased_feature_importance will return the normal features in case of no bias
-        if kwrags.training.bias_rf:
-            num_trees_features = [
-                len(tree.feature_names_in_) for tree in rf.estimators_
-            ]
-            num_features = statistics.mean(num_trees_features)
-        else:
-            num_features = len(features_importance)
-            num_trees_features = num_features
+        )  # biased_feature_importance will return the all features in case of no bias
+        features_importance = features_importance[features_importance[col_name] > 0]
         sorted_features = features_importance.sort_values(
             by=[col_name], ascending=False
-        )[:100]
+        )  # [:100]
         sorted_features = (
             sorted_features.astype(str)
             .merge(
@@ -208,8 +207,21 @@ def do_rf(
             )
             .drop(["genes", "GeneID"], axis=1)
         )
-    else:
+
+        if kwrags.training.bias_rf:
+            # calculate number of features used for each tree
+            num_trees_features = [
+                len(tree.feature_names_in_) for tree in rf.estimators_
+            ]
+
+            # report average number of features per tree as the final number of features
+            num_features = statistics.mean(num_trees_features)
+        else:
+            num_features = len(features_importance)
+            num_trees_features = num_features
+    else:  # not used/reported for the random model
         sorted_features = num_features = num_trees_features = "not_reported"
+
     return (
         fit_runtime,
         test_runtime,

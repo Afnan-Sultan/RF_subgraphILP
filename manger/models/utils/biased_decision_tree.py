@@ -1,3 +1,9 @@
+"""
+This file extends sklearn DecisionTreeClassifier/Regressor.
+
+Nothing is changed except for the addition of new properties used mainly for inspection
+"""
+
 from sklearn.tree import DecisionTreeClassifier, DecisionTreeRegressor
 
 

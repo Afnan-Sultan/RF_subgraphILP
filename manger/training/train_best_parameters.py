@@ -50,15 +50,13 @@ def best_model(
         kwargs,
         output_preds=True,
     )
-    if acc is None:
-        return None
-    else:
-        rf_results[kwargs.model.current_model] = [
-            fit_runtime,
-            test_runtime,
-            acc,
-            sorted_features,
-            num_features,
-            num_trees_features,
-        ]
-        return rf_results
+
+    rf_results[kwargs.model.current_model] = [
+        fit_runtime,
+        test_runtime,
+        acc,
+        sorted_features,
+        num_features,
+        num_trees_features,
+    ]
+    return rf_results

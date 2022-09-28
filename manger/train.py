@@ -50,13 +50,8 @@ def train_gs_cv(drug_name: str, drug_info: dict, kwargs: Kwargs):
             test_classes=splits["test"][3],
             kwargs=kwargs,
         )
-        if (
-            grid_results is None
-        ):  # corr_thresh models sometime report no correlated features > corr_thresh
-            all_models[specified_model] = None
-        else:
-            for sub_model, results in grid_results.items():
-                all_models[sub_model] = results
+        for model, results in grid_results.items():
+            all_models[model] = results
 
     with open(kwargs.results_doc, "a") as convert_file:
         convert_file.write(

@@ -64,14 +64,6 @@ def cross_validation(
             kwargs=kwargs,
         )
 
-        if (
-            acc is None
-        ):  # for cases like thresholded correlation, when no features available
-            logger.info(
-                f"{kwargs.data.drug_name} - finished CV {k} with scores for sensitive cell lines: not available"
-            )
-            continue
-
         if model in cv_results:
             if (
                 cv_results[model]["important_features"] is not None
@@ -100,13 +92,10 @@ def cross_validation(
         k += 1
     kwargs.training.cv_idx = None
 
-    if model in cv_results:
-        cv_results[model]["stats"] = splits_stats(
-            cv_results[model], kwargs.training.regression
-        )
-        return cv_results
-    else:  # thresholded correlation doesn't manage to recruit features always
-        return None
+    cv_results[model]["stats"] = splits_stats(
+        cv_results[model], kwargs.training.regression
+    )
+    return cv_results
 
 
 def get_rand_cv_results(

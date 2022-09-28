@@ -64,8 +64,6 @@ def grid_search_cv(
                 kwargs=kwargs,
                 out_log=out_log,
             )
-        if cv_results is None:
-            continue
 
         for model, results in cv_results.items():
             if model in gcv_results:
@@ -78,30 +76,27 @@ def grid_search_cv(
         )
 
     # rank parameters based on performance of sensitive cell lines
-    if len(gcv_results) > 0:
-        gcv_results, rank_params, best_params = process_grid_search_results(
-            parameters_grid, gcv_results, params_mean_perf, kwargs
-        )
-        for model in gcv_results.keys():
-            gcv_results[model]["gcv_runtime"] = time.time() - start
-        logger.info(f"--- {kwargs.data.drug_name} - finished CROSS VALIDATION ---")
+    gcv_results, rank_params, best_params = process_grid_search_results(
+        parameters_grid, gcv_results, params_mean_perf, kwargs
+    )
+    for model in gcv_results.keys():
+        gcv_results[model]["gcv_runtime"] = time.time() - start
+    logger.info(f"--- {kwargs.data.drug_name} - finished CROSS VALIDATION ---")
 
-        # train best model
-        gcv_results = best_params_model(
-            gcv_results=gcv_results,
-            best_params=best_params,
-            train_features=train_features,
-            train_labels=train_labels,
-            train_classes=train_classes,
-            train_scores=train_scores,
-            test_features=test_features,
-            test_labels=test_labels,
-            test_classes=test_classes,
-            kwargs=kwargs,
-        )
-        return gcv_results
-    else:
-        return None
+    # train best model
+    gcv_results = best_params_model(
+        gcv_results=gcv_results,
+        best_params=best_params,
+        train_features=train_features,
+        train_labels=train_labels,
+        train_classes=train_classes,
+        train_scores=train_scores,
+        test_features=test_features,
+        test_labels=test_labels,
+        test_classes=test_classes,
+        kwargs=kwargs,
+    )
+    return gcv_results
 
 
 def process_grid_search_results(parameters_grid, gcv_results, params_mean_perf, kwargs):
