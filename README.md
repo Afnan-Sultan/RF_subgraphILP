@@ -25,10 +25,8 @@
 ## Model Training
 * `config.json` is an example for parameters file to be passed
   * Other parameters can be found in `manager/config.py`
-* To cross validate the model with the specified parameters (or parameters grid) in `config.json` and test it on best performing parameters (in case of parameters grid)
+* To train models with the specified parameters (or parameters grid) in `config.json` and/or test it on best performing parameters (in case of parameters grid)
   * `$ python3 cli.py train config.json`
-* To train and test the model with fixed parameters list directly
-  * `$ python3 cli.py test config.json`
 * The results are exported to a new folder `results`
 * The results can be plotted using `manger/plots/main.py` where the figures will be exported to `figures` folder
 
