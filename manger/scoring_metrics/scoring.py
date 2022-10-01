@@ -2,16 +2,20 @@ import json
 
 import numpy as np
 import pandas as pd
-from sklearn.metrics import (balanced_accuracy_score, confusion_matrix,
-                             f1_score, matthews_corrcoef, mean_squared_error,
-                             recall_score)
-
 from manger.scoring_metrics.utils import get_sensitivity
 from manger.utils import NewJsonEncoder
+from sklearn.metrics import (
+    balanced_accuracy_score,
+    confusion_matrix,
+    f1_score,
+    matthews_corrcoef,
+    mean_squared_error,
+    recall_score,
+)
 
 
 def calc_accuracy(
-    true_labels: np.array,
+    true_labels: pd.Series,
     prediction: np.array,
     true_classes: pd.Series,
     regression: bool,
@@ -29,7 +33,7 @@ def calc_accuracy(
             "resistant": {"true": res_true, "pred": res_pred},
         }
         with open(output_file, "w") as raw:
-            raw.write(json.dumps(raw_results, indent=4, cls=NewJsonEncoder))
+            raw.write(json.dumps(raw_results, indent=2, cls=NewJsonEncoder))
 
     if regression:
         overall = mean_squared_error(true_labels, prediction)
@@ -53,5 +57,4 @@ def calc_accuracy(
             "youden_j": youden_j,
             "mcc": mcc,
         }
-        # TODO: changed key=recall to sensitivity. change in plot script
     return acc

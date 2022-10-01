@@ -40,4 +40,8 @@ def mapped_gene_matrix(gene_mat, entrez_symbols, node_entrez):
     )
     final_matrix = matched_matrix.loc[subgraph_legit_genes, :]
     logger.info(f"Number of subgraphILP legit genes = {len(final_matrix)}")
-    return matched_matrix, final_matrix  # TODO: remove one of them
+
+    return (
+        matched_matrix,
+        final_matrix,
+    )  # TODO: remove one of them. So far, they are the same

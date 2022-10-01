@@ -10,6 +10,7 @@
 * The `manager` folder contains the code for the project.
   * `manager/data` contains the code used for data processing (e.g., files pre-processing, data splitting, data filtering, ...etc.)
   * `manger/models` contains the code to implement the different models (e.g., subgraphILP, random, ...etc.)
+    * The main project ideas are implemented in `manager/models/utils/biased_random_forest.py`
   * `manger/training` contains the code for training (e.g., parameter grid search, cross validation, ...etc.)
   * `manager/plots` contains the code to generate analysis plots (e.g., performance, runtime, splits, ...etc.)
   * `manager/scoring_metrics` contains the code used for evaluation

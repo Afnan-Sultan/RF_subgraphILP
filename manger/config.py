@@ -5,7 +5,7 @@ from typing import Any, List, Optional, Union
 from pydantic import BaseModel
 from sklearn.model_selection import ParameterGrid
 
-from manger.data.preprocessing import ProcessedFiles
+from manger.data.files_preprocessing import ProcessedFiles
 
 
 class TrainingConfig(BaseModel):
@@ -68,6 +68,9 @@ class TrainingConfig(BaseModel):
         }
         return grid
 
+    grid_search: bool = True
+    drugs_n_jobs: int = 1
+
     # cross validation parameters
     num_kfold: int = 5
     cv_idx: Optional[int]
@@ -82,7 +85,7 @@ class TrainingConfig(BaseModel):
 
     # experimentation parameters
     weight_samples: bool
-    simple_weight: Optional[bool]  # TODO: implement
+    simple_weight: Optional[bool]
     regression: bool
     cell_lines_thresh: int = 700  # min number of cell lines per drug
 
@@ -231,17 +234,15 @@ class Kwargs(BaseModel):
 
     @cached_property
     def results_doc(self) -> str:
-        if len(self.model.models) < 3 and (
-            "random" in self.model.models or "corr_num" in self.model.models
-        ):
+        if self.training.grid_search:
             return os.path.join(
                 self.results_dir,
-                f"gcv_numbered_{self.method}{self.weight}{self.bias}.jsonl",
+                f"gcv_{self.method}{self.weight}{self.bias}.jsonl",
             )
         else:
             return os.path.join(
                 self.results_dir,
-                f"gcv_{self.method}{self.weight}{self.bias}.jsonl",
+                f"final_{self.method}{self.weight}{self.bias}.jsonl",
             )
 
     @cached_property

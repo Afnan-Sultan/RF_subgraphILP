@@ -1,5 +1,4 @@
 import statistics
-from typing import List
 
 import numpy as np
 import pandas as pd
@@ -11,9 +10,11 @@ def get_sensitivity(
     """
     split the true and predicted results into sensitive/resistant
     """
-    temp = (
-        test_classes.reset_index()
-    )  # to get numerical indices for sub-setting `predictions' instead of cell_lines
+
+    # convert to numerical indices for proper sub-setting of `predictions' as it doesn't contain cell lines IDs
+    temp = test_classes.reset_index(drop=True)
+
+    # select the samples of the specified class in both true and predicted labels
     idxs = temp[temp.values == label].index
     true = true_labels.iloc[idxs]
     pred = prediction[idxs]
@@ -62,31 +63,58 @@ def subsets_means(cv_results: dict, params_mean_perf: dict, regression: bool, id
     """
     calculate the results for the subsets of sensitive/resistant cell lines
     """
-    for model, results in cv_results.items():
-        subsets = [
-            "_".join(metric.split("_")[1:])
-            for metric in results.keys()
-            if metric.startswith("ACCs")
-        ]
-        if model not in params_mean_perf:
-            params_mean_perf[model] = {}
-        for subset in subsets:
-            if subset in params_mean_perf[model]:
-                if regression:
-                    params_mean_perf[model][subset][idx] = cv_results[model]["stats"][
-                        f"{subset}_mean_mse"
-                    ]
-                else:
-                    params_mean_perf[model][subset][idx] = cv_results[model]["stats"][
-                        f"{subset}_mean"
-                    ]
+
+    subsets = [
+        "_".join(
+            metric.split("_")[1:]
+        )  # reattach a metric if it's more than one syllabus (e.g., youden_j)
+        for metric in cv_results.keys()
+        if metric.startswith("ACCs")
+    ]
+
+    for subset in subsets:
+        if subset in params_mean_perf:
+            if regression:
+                params_mean_perf[subset][idx] = cv_results["stats"][
+                    f"{subset}_mean_mse"
+                ]
             else:
-                if regression:
-                    params_mean_perf[model][subset] = {
-                        idx: cv_results[model]["stats"][f"{subset}_mean_mse"]
-                    }
-                else:
-                    params_mean_perf[model][subset] = {
-                        idx: cv_results[model]["stats"][f"{subset}_mean"]
-                    }
-    return params_mean_perf
+                params_mean_perf[subset][idx] = cv_results["stats"][f"{subset}_mean"]
+        else:
+            if regression:
+                params_mean_perf[subset] = {
+                    idx: cv_results["stats"][f"{subset}_mean_mse"]
+                }
+            else:
+                params_mean_perf[subset] = {idx: cv_results["stats"][f"{subset}_mean"]}
+    # return params_mean_perf
+
+
+def rank_parameters(parameters_grid, gcv_results, params_mean_perf, kwargs):
+
+    # rank the mean performance for each parameter per subset (subsets = {overall, sensitive, resistant} if regression
+    # or subsets = {sensitivity, specificity, f1. ...etc.} if classification)
+    rank_params = {}
+    if kwargs.training.regression:
+        reverse = False  # the lower score, the better
+    else:
+        reverse = True  # the higher score, the better
+    for subset, mean_scores in params_mean_perf.items():
+        rank_params[subset] = {
+            param_idx: score
+            for param_idx, score in sorted(  # mean_scores = dict{keys = [parameters_indices], values = [average score]}
+                mean_scores.items(), key=lambda item: item[1], reverse=reverse
+            )
+        }
+    gcv_results["rank_params_scores"] = rank_params
+
+    # retrieve the best parameters based on performance on the sensitive cell lines
+    # ("mse fo sensitive cell lines" if regression or "sensitivity" if classification)
+    best_params = [
+        parameters_grid[
+            list(rank.keys())[0]
+        ]  # best parameter's index is the first key in rank_params
+        for subset, rank in rank_params.items()
+        if subset == "sensitivity"
+    ][0]
+    return best_params  # gcv_results

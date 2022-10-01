@@ -38,8 +38,8 @@ def which_rf(
     *_classes = pd.Series(..., columns=["labels"], index=[cell_lines: List[int]])
     train_scores = pd.Series(..., columns=["ic_50"], index=[cell_lines: List[int]])
     """
-
     model = kwargs.model.current_model
+
     if kwargs.training.bias_rf:
         features = train_features.columns.to_list()
         (
@@ -151,7 +151,6 @@ def do_rf(
         rf = BiasedRandomForestClassifier(
             kwrags, train_classes, train_scores, **rf_params
         )
-
     # calculate sample weights
     if kwrags.training.weight_samples:
         if kwrags.training.simple_weight:
@@ -186,17 +185,21 @@ def do_rf(
         test_labels, predictions, test_classes, kwrags.training.regression, output_file
     )
 
-    # further analysis to be outputted
     if features_names is not None:
-        # retrieve non-zero feature_importance
+        # retrieve feature_importance
         col_name = "feature_importance"
         features_importance = pd.DataFrame(
             {"genes": features_names, col_name: rf.biased_feature_importance}
         )  # biased_feature_importance will return the all features in case of no bias
+        num_features = num_trees_features = len(features_importance)
+
+        # filter and sort non-zero feature_importance
         features_importance = features_importance[features_importance[col_name] > 0]
         sorted_features = features_importance.sort_values(
             by=[col_name], ascending=False
         )  # [:100]
+
+        # convert gene entrez-ids to gene-symbols
         sorted_features = (
             sorted_features.astype(str)
             .merge(
@@ -216,9 +219,6 @@ def do_rf(
 
             # report average number of features per tree as the final number of features
             num_features = statistics.mean(num_trees_features)
-        else:
-            num_features = len(features_importance)
-            num_trees_features = num_features
     else:  # not used/reported for the random model
         sorted_features = num_features = num_trees_features = "not_reported"
 

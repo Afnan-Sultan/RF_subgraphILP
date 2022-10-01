@@ -3,14 +3,13 @@ import logging
 import os
 
 import pandas as pd
-
 from manger.config import Kwargs
 from manger.utils import NewJsonEncoder
 
 logger = logging.getLogger(__name__)
 
 
-def feature_split(gene_mat: pd.DataFrame, meta_data: pd.DataFrame, kwargs: Kwargs):
+def split_data(gene_mat: pd.DataFrame, meta_data: pd.DataFrame, kwargs: Kwargs):
     """
     split data into train and test sets, stratified with respect to sensitive/resistant assignments.
     gene_mat = pd.DataFrame(..., columns=[cell_lines: List[int]], index= [genes: List[Any])
@@ -34,38 +33,28 @@ def feature_split(gene_mat: pd.DataFrame, meta_data: pd.DataFrame, kwargs: Kwarg
 
     # sample the training and test sets according to the above sampling
     test_features = gene_mat.loc[stratified_sample.index]
-    classification_test_labels = classes.loc[test_features.index]
-    regression_test_labels = scores.loc[test_features.index]
-    test_classes = classes.loc[test_features.index].reset_index(
-        drop=True
-    )  # to be passed for the overall accuracy test
+    test_classes = classes.loc[test_features.index]
+    test_scores = scores.loc[test_features.index]
 
     train_features = gene_mat.drop(test_features.index)
-    classification_train_labels = classes.loc[train_features.index]
-    regression_train_labels = scores.loc[train_features.index]
+    train_classes = classes.loc[train_features.index]
     train_scores = scores.loc[train_features.index]
-    train_classes = classes.loc[
-        train_features.index
-    ]  # to be passed for cross validation accuracy test
 
-    train_info = [
-        train_features,
-        classification_train_labels,
-        regression_train_labels,
-        train_scores,
-        train_classes,
-    ]
-    test_info = [
-        test_features,
-        classification_test_labels,
-        regression_test_labels,
-        test_classes,
-    ]
+    train_info = {
+        "data": train_features,
+        "scores": train_scores,
+        "classes": train_classes,
+    }
+    test_info = {
+        "data": test_features,
+        "scores": test_scores,
+        "classes": test_classes,
+    }
     splits = {"train": train_info, "test": test_info}
 
     file_dir = os.path.join(
         kwargs.matrices_output_dir, kwargs.data.drug_name, "train_test_splits.json"
     )
     with open(file_dir, "w") as split_output:
-        split_output.write(json.dumps(splits, indent=4, cls=NewJsonEncoder))
+        split_output.write(json.dumps(splits, indent=2, cls=NewJsonEncoder))
     return splits

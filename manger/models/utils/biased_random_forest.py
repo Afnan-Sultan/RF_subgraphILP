@@ -290,7 +290,7 @@ def output_tree_info(
                             "features_importance": importance,
                         }
                     },
-                    indent=4,
+                    indent=2,
                     cls=NewJsonEncoder,
                 )
             )

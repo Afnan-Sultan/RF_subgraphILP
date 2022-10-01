@@ -2,9 +2,8 @@ import logging
 import os
 
 import pandas as pd
-from tqdm import tqdm
-
 from manger.config import Kwargs
+from tqdm import tqdm
 
 logger = logging.getLogger(__name__)
 

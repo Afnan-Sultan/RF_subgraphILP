@@ -1,3 +1,5 @@
+import time
+
 import pandas as pd
 from manger.config import Kwargs
 from manger.models.random_forest import which_rf
@@ -22,15 +24,18 @@ def best_model(
     train_scores = pd.Series(..., columns=["ic_50"], index=[cell_lines: List[int]])
     return: dict of results for the final model
     """
-    train_features.columns = train_features.columns.astype(str)
-    test_features.columns = train_features.columns.astype(str)
 
+    # ensure the column names are strings to be recognized as feature names for random forest
+    train_features.columns = train_features.columns.astype(str)
+    test_features.columns = test_features.columns.astype(str)
+
+    # output the selected number of features to be used for the random model
     if "subgraphilp" in kwargs.model.current_model:
         kwargs.data.output_num_feature = True
     else:
         kwargs.data.output_num_feature = False
 
-    rf_results = {}
+    start = time.time()
     (
         fit_runtime,
         test_runtime,
@@ -51,12 +56,13 @@ def best_model(
         output_preds=True,
     )
 
-    rf_results[kwargs.model.current_model] = [
-        fit_runtime,
-        test_runtime,
-        acc,
-        sorted_features,
-        num_features,
-        num_trees_features,
-    ]
-    return rf_results
+    return {
+        "params": best_params,
+        "train_runtime": fit_runtime,
+        "test_runtime": test_runtime,
+        "model_runtime": time.time() - start,
+        "test_scores": acc,
+        "features_importance": sorted_features,
+        "num_features": num_features,
+        "num_tress_features": num_trees_features,
+    }

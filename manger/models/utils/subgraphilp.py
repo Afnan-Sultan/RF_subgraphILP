@@ -6,7 +6,6 @@ from typing import List
 
 import numpy as np
 import pandas as pd
-
 from manger.config import Kwargs
 from manger.data.network_processing import map_nodes_to_entrez
 from manger.utils import NewJsonEncoder
@@ -186,7 +185,7 @@ def subgraphilp_features(output_dir: str, features: List, kwargs: Kwargs):
                 )
                 with open(output_selection, "w") as selection:
                     selection.write(
-                        json.dumps(node_selection_info, indent=4, cls=NewJsonEncoder)
+                        json.dumps(node_selection_info, indent=2, cls=NewJsonEncoder)
                     )
 
                 selected_features.update(node_features)
@@ -199,7 +198,7 @@ def subgraphilp_features(output_dir: str, features: List, kwargs: Kwargs):
         )
         output_selection = os.path.join(output_dir, "feature_selection_info.json")
         with open(output_selection, "w") as selection:
-            selection.write(json.dumps(selection_info, indent=4, cls=NewJsonEncoder))
+            selection.write(json.dumps(selection_info, indent=2, cls=NewJsonEncoder))
         if kwargs.data.output_num_feature:
             with open(
                 kwargs.subgraphilp_num_features_output_file, "a"
