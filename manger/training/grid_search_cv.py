@@ -32,10 +32,6 @@ def grid_search_cv(
     parameters_grid = kwargs.training.parameters_grid
     model = kwargs.model.current_model
 
-    # ensure the column names are strings to be recognized as feature names for random forest
-    train_features.columns = train_features.columns.astype(str)
-    test_features.columns = test_features.columns.astype(str)
-
     # grid search with cross validation
     start = time.time()
     gcv_results = {}

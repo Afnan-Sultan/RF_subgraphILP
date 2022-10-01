@@ -151,6 +151,7 @@ def do_rf(
         rf = BiasedRandomForestClassifier(
             kwrags, train_classes, train_scores, **rf_params
         )
+
     # calculate sample weights
     if kwrags.training.weight_samples:
         if kwrags.training.simple_weight:
@@ -159,6 +160,10 @@ def do_rf(
             weights = calculate_linear_weights(kwrags.data.drug_threshold, train_scores)
     else:
         weights = None
+
+    # ensure the column names are strings to be recognized as feature names for random forest
+    train_features.columns = train_features.columns.astype(str)
+    test_features.columns = test_features.columns.astype(str)
 
     # Fit
     start = time.time()

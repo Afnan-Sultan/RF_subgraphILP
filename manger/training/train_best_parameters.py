@@ -25,10 +25,6 @@ def best_model(
     return: dict of results for the final model
     """
 
-    # ensure the column names are strings to be recognized as feature names for random forest
-    train_features.columns = train_features.columns.astype(str)
-    test_features.columns = test_features.columns.astype(str)
-
     # output the selected number of features to be used for the random model
     if "subgraphilp" in kwargs.model.current_model:
         kwargs.data.output_num_feature = True
