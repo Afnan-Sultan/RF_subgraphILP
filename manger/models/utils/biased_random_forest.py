@@ -10,7 +10,6 @@ This file extends sklearn RandomForestClassifier/Regressor.
 4. {model}.predict is extended to predict response based on leaf_class_assignment if sauron is selected
 """
 
-
 import json
 import os.path
 import threading
@@ -114,12 +113,23 @@ class BiasedRandomForestRegressor(ForestRegressor):
         )
 
     def predict(self, X):
+        """
+        same function as the model's original function. However, in case of bias_rf, the dataset needs to be subsetted
+        for each tree to include only the features used during fitting.
+
+        the tree.predict function accepts only ndarrays with the assumption that the ndarray contains the same number
+        of features as used in tree.fit
+        """
         if self.kwargs.training.sauron:
             return predict_sauron(self, X)
 
         check_is_fitted(self)
+
         # Check data
         X = self._validate_X_predict(X)
+
+        # data validation converts X to ndarray, but we need feature names to subset for each tree in case of bias_rf
+        X_df = pd.DataFrame(X, columns=self.feature_names_in_)
 
         # Assign chunk of trees to jobs
         n_jobs, _, _ = _partition_estimators(self.n_estimators, self.n_jobs)
@@ -130,14 +140,16 @@ class BiasedRandomForestRegressor(ForestRegressor):
         else:
             y_hat = np.zeros((X.shape[0]), dtype=np.float64)
 
-        # define the input dataframe with the features' names, to subset it properly for each tree
-        X_df = pd.DataFrame(X, columns=self.feature_names_in_)
-
         # Parallel loop
         lock = threading.Lock()
         Parallel(n_jobs=n_jobs, verbose=self.verbose, require="sharedmem")(
             delayed(_accumulate_prediction)(
-                e.predict, np.array(X_df.loc[:, e.feature_names_in_]), [y_hat], lock
+                e.predict,
+                # tree.predict accepts ndarrays. So, the dataset is subsetted to include only features of the tree
+                # before converting to ndarray
+                np.array(X_df.loc[:, e.feature_names_in_]),
+                [y_hat],
+                lock,
             )
             for e in self.estimators_
         )
@@ -214,9 +226,20 @@ class BiasedRandomForestClassifier(ForestClassifier):
         return biased_fit(self, X, y, sample_weight=sample_weight)
 
     def predict_proba(self, X):
+        """
+        same function as the model's original function. However, in case of bias_rf, the dataset needs to be subsetted
+        for each tree to include only the features used during fitting.
+
+        the tree.predict function accepts only ndarrays with the assumption that the ndarray contains the same number
+        of features as used in tree.fit
+        """
         check_is_fitted(self)
+
         # Check data
         X = self._validate_X_predict(X)
+
+        # data validation converts X to ndarray, but we need feature names to subset for each tree in case of bias_rf
+        X_df = pd.DataFrame(X, columns=self.feature_names_in_)
 
         # Assign chunk of trees to jobs
         n_jobs, _, _ = _partition_estimators(self.n_estimators, self.n_jobs)
@@ -227,29 +250,18 @@ class BiasedRandomForestClassifier(ForestClassifier):
             for j in np.atleast_1d(self.n_classes_)
         ]
         lock = threading.Lock()
-        if self.kwargs.training.bias_rf:
-            # define the input dataframe with the features' names, to subset it properly for each tree
-            X_df = pd.DataFrame(X, columns=self.feature_names_in_)
-            Parallel(n_jobs=n_jobs, verbose=self.verbose, require="sharedmem")(
-                delayed(_accumulate_prediction)(
-                    e.predict_proba,
-                    # pass only the features' subset that each tree was fitted on
-                    np.array(X_df.loc[:, e.feature_names_in_]),
-                    all_proba,
-                    lock,
-                )
-                for e in self.estimators_
+
+        # define the input dataframe with the features' names, to subset it properly for each tree
+        Parallel(n_jobs=n_jobs, verbose=self.verbose, require="sharedmem")(
+            delayed(_accumulate_prediction)(
+                e.predict_proba,
+                # pass only the features' subset that each tree was fitted on
+                np.array(X_df.loc[:, e.feature_names_in_]),
+                all_proba,
+                lock,
             )
-        else:
-            Parallel(n_jobs=n_jobs, verbose=self.verbose, require="sharedmem")(
-                delayed(_accumulate_prediction)(
-                    e.predict_proba,
-                    X,
-                    all_proba,
-                    lock,
-                )
-                for e in self.estimators_
-            )
+            for e in self.estimators_
+        )
 
         for proba in all_proba:
             proba /= len(self.estimators_)
@@ -265,7 +277,7 @@ class BiasedRandomForestClassifier(ForestClassifier):
 
 
 def output_tree_info(
-    kwargs, tree_idx, train_classes, indices, biased_features, importance=None
+    bootstrapped_samples, biased_features, importance, tree_idx, kwargs
 ):
     """
     This is meant to be used for best model only
@@ -276,16 +288,12 @@ def output_tree_info(
         )
         os.makedirs(out_path, exist_ok=True)
         out_file = os.path.join(out_path, f"{kwargs.model.current_model}.json")
-        if not os.path.isfile(out_file):
-            with open(out_file, "w"):
-                pass
-
         with open(out_file, "a") as tree_output:
             tree_output.write(
                 json.dumps(
                     {
                         tree_idx: {
-                            "cell_lines": train_classes.iloc[indices].index.to_list(),
+                            "cell_lines": bootstrapped_samples,
                             "features": biased_features,
                             "features_importance": importance,
                         }
@@ -297,11 +305,15 @@ def output_tree_info(
             tree_output.write("\n")
 
 
-def leaf_class_assignment(tree, bootstrapped_X, classes):
-    """assign a class for the RF_Regressor leafs after fitting, based on pre-defined samples' classification"""
+def leaf_class_assignment(tree, bootstrapped_X, X_classes):
+    """
+    assign a class for the RF_Regressor leafs after fitting, based on pre-defined samples' classification
+
+    X_classes contains classes for all cell_lines to avoid multiple retrieval of classes if bootstrapped_X was used
+    """
 
     # identify the leaf node for each sample
-    samples_assignment = tree.apply(bootstrapped_X)
+    samples_assignment = tree.apply(bootstrapped_X.loc[:, tree.feature_names_in_])
 
     # storage purposes - store the ids/classes of cell lines falling into a leaf
     leaf_samples, leaf_classes = {}, {}
@@ -312,10 +324,10 @@ def leaf_class_assignment(tree, bootstrapped_X, classes):
         cell_line = cell_lines[sample_idx]
         if leaf in leaf_samples:
             leaf_samples[leaf].append(cell_line)
-            leaf_classes[leaf].append(classes.loc[cell_line])
+            leaf_classes[leaf].append(X_classes.loc[cell_line])
         else:
             leaf_samples[leaf] = [cell_line]
-            leaf_classes[leaf] = [classes.loc[cell_line]]
+            leaf_classes[leaf] = [X_classes.loc[cell_line]]
 
     # sort for easier visualization when needed
     # leaf_samples = {leaf: sorted(val) for leaf, val in leaf_samples.items()}
@@ -388,18 +400,21 @@ def _parallel_build_trees(
         # convert X to a dataframe to make the feature names recognized by the trees
         X = pd.DataFrame(X, columns=features_name, index=train_classes.index.to_list())
 
-        # identify the bootstrapped matrix
+        # identify the bootstrapped matrix and corresponding scores/classes
         bootstrapped_X = X.iloc[indices]
         tree.bootstrapped_samples = bootstrapped_X.index.to_list()  # for storage
+
+        bootstrapped_X_scores = train_scores.iloc[indices]
+        bootstrapped_X_classes = train_classes.iloc[indices]
 
         biased_features = None
         if kwargs.training.bias_rf:
             # select features of those reported from the method of interest
             to_tree = feature_selection(
-                bootstrapped_X,
-                train_classes,
-                train_scores,
-                kwargs,
+                train_features=bootstrapped_X,
+                train_classes=bootstrapped_X_classes,
+                train_scores=bootstrapped_X_scores,
+                kwargs=kwargs,
                 tree_idx=tree_idx,
             )
             biased_features = to_tree["features"]
@@ -422,14 +437,13 @@ def _parallel_build_trees(
 
         if kwargs.training.bias_rf:
             if kwargs.training.output_trees_info:
-                # output tree info (bootstrapped samples, features and features importance) for analysis
+                # output tree info (bootstrapped samples, features, and features importance) for analysis
                 output_tree_info(
-                    kwargs,
-                    tree_idx,
-                    train_classes,
-                    indices,
-                    biased_features,
-                    tree.feature_importances_,
+                    bootstrapped_samples=tree.bootstrapped_samples,
+                    biased_features=biased_features,
+                    importance=tree.feature_importances_,
+                    tree_idx=tree_idx,
+                    kwargs=kwargs,
                 )
 
             # each tree is trained on features' subset, but the RF is using all features.
@@ -646,7 +660,7 @@ def apply_sauron(model, test_df):
     samples_trees_distribution = {}
     for tree_idx, tree in enumerate(model.estimators_):
         # identify the leaf node for each sample
-        samples_leaf_assignment = tree.apply(test_df)
+        samples_leaf_assignment = tree.apply(test_df.loc[:, tree.feature_names_in_])
 
         # fetch the class of each leaf node (hence, the class of the sample) as calculated during fitting
         samples_leaf_classes = [
@@ -659,9 +673,12 @@ def apply_sauron(model, test_df):
             if class_assignment == 1:
                 key = "sensitive_trees"
                 other_key = "resistant_trees"
-            else:
+            elif class_assignment == 0:
                 key = "resistant_trees"
                 other_key = "sensitive_trees"
+            else:
+                raise TypeError("unexpected leaf assignment!")
+
             if sample_idx in samples_trees_distribution:
                 samples_trees_distribution[sample_idx][key].append(tree_idx)
             else:

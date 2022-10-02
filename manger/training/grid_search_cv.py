@@ -23,11 +23,11 @@ def grid_search_cv(
 ):
     """
     perform grid search cross validation.
-    *_features = pd.DataFrame(..., columns=[genes: List[Any], index=[cell_lines: List[int]])
+    *_features = pd.DataFrame(..., columns=[genes: List[int], index=[cell_lines: List[int]])
     *_labels = pd.Series(..., columns=["ic_50" if regression else "labels"], index=[cell_lines: List[int]])
     *_classes = pd.Series(..., columns=["labels"], index=[cell_lines: List[int]])
     train_scores = pd.Series(..., columns=["ic_50"], index=[cell_lines: List[int]])
-    return: dict of results for each hyperparameters combination
+    return: dict of results for each hyperparameter combination
     """
     parameters_grid = kwargs.training.parameters_grid
     model = kwargs.model.current_model
@@ -41,8 +41,8 @@ def grid_search_cv(
             logger.info(
                 f"--- {kwargs.data.drug_name} - parameters combination {idx} ---"
             )
-
         kwargs.training.gcv_idx = idx
+
         if model == "random" and kwargs.training.bias_rf:
             cv_results = get_rand_cv_results(
                 rf_params=rf_params,
@@ -69,7 +69,13 @@ def grid_search_cv(
             gcv_results["parameters_combo_cv_results"] = {idx: cv_results}
 
         # update params_mean_perf for the current fold
-        subsets_means(cv_results, params_mean_perf, kwargs.training.regression, idx)
+        subsets_means(
+            cv_results,
+            params_mean_perf,
+            kwargs.data.acc_subset,
+            kwargs.training.regression,
+            idx,
+        )
 
     # update gcv_results with parameters rank and retrieve the best parameters (based on sensitive cell lines scores)
     best_params = rank_parameters(

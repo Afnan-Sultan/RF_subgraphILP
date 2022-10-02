@@ -22,10 +22,13 @@ def train(
     )
 ):
     """
-    train a parameters list/grid using grid search amd cross validation.
-    The best parameters list wrt cv is used for training the best model.
+    train a parameters list/grid using either grid search and cross validation or direct training.
+    In case of grid search, the best parameters list wrt cv is used for training the best model.
     """
+    # parse the configuration file
     kwargs = Kwargs.parse_file(kwargs_file)
+
+    # output the configuration in the results' folder for reference
     with open(os.path.join(kwargs.results_dir, "config.json"), "w") as config_file:
         config_file.write(json.dumps(json.loads(open(kwargs_file).read()), indent=4))
 

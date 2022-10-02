@@ -37,6 +37,7 @@ def best_model(
         test_runtime,
         acc,
         sorted_features,
+        num_features_overall,
         num_features,
         num_trees_features,
     ) = which_rf(
@@ -59,6 +60,7 @@ def best_model(
         "model_runtime": time.time() - start,
         "test_scores": acc,
         "features_importance": sorted_features,
+        "num_features_overall": num_features_overall,
         "num_features": num_features,
         "num_tress_features": num_trees_features,
     }

@@ -12,19 +12,18 @@ logger = logging.getLogger(__name__)
 
 def train_models(drug_name: str, drug_info: dict, kwargs: Kwargs):
     """
-    drugs_info = {$drug_name: {"gene_mat": $gene_mat, "meta_data": $meta_data}}
-        gene_mat = pd.DataFrame(..., columns=[cell_lines: List[int]], index= [genes: List[Any])
+    drug_info = {$drug_name: {"gene_mat": $gene_mat, "meta_data": $meta_data}}
+        gene_mat = pd.DataFrame(..., columns=[cell_lines: List[str]], index= [genes: List[int])
         meta_data = pd.DataFrame(..., columns=["ic_50", "labels"], index= [cell_lines: List[int]])
     return None, outputs results to a file
     """
 
-    # retrieve the discretization threshold of the current drug
     if kwargs.training.weight_samples:
+        # retrieve the discretization threshold of the current drug
         drug_thresh = get_thresh(drug_name, kwargs.data.processed_files.thresholds)
-        kwargs.data.drug_threshold = drug_thresh
-    kwargs.data.drug_name = drug_name
+        kwargs.data.drug_threshold = drug_thresh  # globalize
+    kwargs.data.drug_name = drug_name  # globalize
 
-    # split to train and test
     logger.info(f"*** Splitting data into train and test sets for {drug_name} ***")
     splits = split_data(drug_info["gene_mat"], drug_info["meta_data"], kwargs)
 
@@ -36,7 +35,7 @@ def train_models(drug_name: str, drug_info: dict, kwargs: Kwargs):
         if kwargs.training.regression:  # set labels to the ic-50 scores
             train_labels = splits["train"]["scores"]
             test_labels = splits["test"]["scores"]
-        else:  # set labels to the sensitivity discretized labels
+        else:  # set labels to the discretized labels
             train_labels = splits["train"]["classes"]
             test_labels = splits["test"]["classes"]
 

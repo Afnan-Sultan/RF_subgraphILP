@@ -50,7 +50,7 @@ def cross_validation(
         cv_train_features = train_features.iloc[train_index]
         cv_test_features = train_features.iloc[test_index]
 
-        fit_runtime, test_runtime, acc, sorted_features, _, _ = which_rf(
+        fit_runtime, test_runtime, acc, sorted_features, _, _, _ = which_rf(
             rf_params=rf_params,
             train_features=cv_train_features,
             train_classes=cv_train_classes,
@@ -63,9 +63,7 @@ def cross_validation(
         )
 
         if len(cv_results) > 1:
-            if (
-                cv_results["important_features"] is not None
-            ):  # features not reported for the random model
+            if cv_results["important_features"] is not None:
                 cv_results["important_features"].append(sorted_features[:10])
             cv_results["train_runtime"].append(fit_runtime)
             cv_results["test_runtime"].append(test_runtime)
@@ -75,8 +73,7 @@ def cross_validation(
             cv_results = {
                 "train_runtime": [fit_runtime],
                 "test_runtime": [test_runtime],
-                # features not reported for the random model
-                "important_features": None
+                "important_features": None  # features not reported for the random model
                 if sorted_features is None
                 else [sorted_features[:10]],
             }
@@ -90,7 +87,9 @@ def cross_validation(
         k += 1
     kwargs.training.cv_idx = None
 
-    cv_results["stats"] = splits_stats(cv_results, kwargs.training.regression)
+    cv_results["stats"] = splits_stats(
+        cv_results, kwargs.data.acc_subset, kwargs.training.regression
+    )
     return cv_results
 
 
@@ -105,6 +104,8 @@ def get_rand_cv_results(
 ):
     """
     independent function for the random model, to average the performance and return single values as the other models
+    invoked when bias_rf is selected, to train n rf models with each tree in a model limited to the average number
+    of features selected from the subgraphilp model.
 
     rf_params = dict of parameters to be passed to sklearn.RandomForestRegressor/Classifier
     train_features = pd.DataFrame(..., columns=[genes: List[Any], index=[cell_lines: List[int]])
@@ -124,12 +125,10 @@ def get_rand_cv_results(
             kwargs,
             out_log,
         )
+        subsets = kwargs.data.acc_subset
         if len(rand_cv_results) > 1:
             rand_cv_results["train_runtime"].append(cv_results["train_runtime"])
             rand_cv_results["test_runtime"].append(cv_results["test_runtime"])
-            subsets = [
-                key.split("_")[1] for key in cv_results if key.startswith("ACCs")
-            ]
             for subset in subsets:
                 rand_cv_results[f"ACCs_{subset}"].append(cv_results[f"ACCs_{subset}"])
         else:
@@ -137,9 +136,6 @@ def get_rand_cv_results(
                 "train_runtime": [cv_results["train_runtime"]],
                 "test_runtime": [cv_results["test_runtime"]],
             }
-            subsets = [
-                key.split("_")[1] for key in cv_results if key.startswith("ACCs")
-            ]
             for subset in subsets:
                 rand_cv_results[f"ACCs_{subset}"] = [cv_results[f"ACCs_{subset}"]]
 

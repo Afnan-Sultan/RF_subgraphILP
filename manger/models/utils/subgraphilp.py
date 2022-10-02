@@ -11,6 +11,16 @@ from manger.data.network_processing import map_nodes_to_entrez
 from manger.utils import NewJsonEncoder
 
 
+def get_samples(gene_mat, classes, label):
+    label_cls = classes[classes.values == label].index.to_list()
+    to_include = []
+    for idx, cl in enumerate(gene_mat.columns.to_list()):
+        if cl in label_cls:
+            to_include.append(idx)
+    label_mat = gene_mat.iloc[:, to_include]
+    return label_mat
+
+
 def differential_expression(
     gene_mat: pd.DataFrame, classes: pd.Series, output_dir: str, de_method: str
 ):
@@ -22,24 +32,14 @@ def differential_expression(
     """
     gene_mat = gene_mat.transpose()
 
-    # TODO: check if this can be done without loop while preserving repetition
-    ref_idx = [
-        cl for cl in gene_mat.columns if cl in classes[classes.values == 0].index
-    ]
-    # ref = gene_mat.loc[:, classes[classes.values == 0].index]
-    ref = gene_mat.loc[:, ref_idx]
-
-    sample_idx = [
-        cl for cl in gene_mat.columns if cl in classes[classes.values == 1].index
-    ]
-    # sample = gene_mat.loc[:, classes[classes.values == 1].index]
-    sample = gene_mat.loc[:, sample_idx]
-
+    ref = get_samples(gene_mat, classes, 0)
     ref_mean = ref.mean(axis=1)
     ref_var = ref.var(axis=1)
 
+    sample = get_samples(gene_mat, classes, 1)
     sample_mean = sample.mean(axis=1)
     sample_var = sample.var(axis=1)
+
     if de_method == "fc":
         fc = ref_mean / sample_mean
         output_file = os.path.join(output_dir, "fold_change.txt")
@@ -76,14 +76,11 @@ def run_subgraphilp_executables(scores_file: str, drug_output_dir: str, kwargs: 
     )
     subprocess.run(mapper_command.split(), stdout=log_file)
 
-    if kwargs.training.target_root_node:  # TODO: adjust for the saved tree folders
-        if (
-            kwargs.data.drug_name.split("___")[0]
-            in kwargs.data.processed_files.drugs_targets.keys()
-        ):
-            for target_node in kwargs.data.processed_files.drugs_targets[
-                kwargs.data.drug_name.split("___")[0]
-            ]:
+    if kwargs.training.target_root_node:
+        drug = kwargs.data.drug_name.split("___")[0]
+        drug_targets = kwargs.data.processed_files.drugs_targets
+        if drug in drug_targets.keys():
+            for target_node in drug_targets[drug]:
                 subprocess.run(
                     f'echo "\ntarget node ID: {target_node}"'.split(), stdout=log_file
                 )
@@ -106,9 +103,7 @@ def run_subgraphilp_executables(scores_file: str, drug_output_dir: str, kwargs: 
             f"-re {drug_output_dir}/network.%k.sif "
             f"-k {kwargs.training.num_knodes}"
         )
-        subprocess.run(
-            comp_command.split(), stdout=log_file
-        )  # run subgraphILP without target node
+        subprocess.run(comp_command.split(), stdout=log_file)
     log_file.close()
 
 
@@ -167,7 +162,7 @@ def process_subgraphilp_output(indir: str, features: List, kwargs: Kwargs):
     }, present_selected
 
 
-def subgraphilp_features(output_dir: str, features: List, kwargs: Kwargs):
+def subgraphilp_features(output_dir: str, features: list, kwargs: Kwargs):
     if kwargs.training.target_root_node:
         nodes_folders = [
             os.path.join(output_dir, folder)

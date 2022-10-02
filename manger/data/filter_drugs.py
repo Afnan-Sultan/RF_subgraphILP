@@ -14,7 +14,7 @@ def select_by_drug(discretized_mat, num_cell_lines):
     """
     drug_cell_dict = {}  # store cell lines associated with a drug
     for drug in discretized_mat:
-        # ignore NaNs from counted cell lines
+        # ignore cell lines with NaN
         used_cell_lines = discretized_mat[
             discretized_mat[drug].notnull()
         ].index.to_list()
@@ -26,13 +26,15 @@ def select_by_drug(discretized_mat, num_cell_lines):
 
 def filter_drugs(kwargs: Kwargs):
     """
-    Select the genes scores for each drug, corresponding to the cell lines associated with that drug.
+    Select gene expression matrix corresponding to the cell lines associated with drugs passing the cell lines threshold
     """
     selected_drugs = {}
-    if kwargs.from_disk:
+    if (
+        kwargs.from_disk
+    ):  # TODO: can be removed when done. used only for repetition sake
         for drug_name in tqdm(
             os.listdir(kwargs.matrices_output_dir),
-            desc="Fetching selected drugs from desk",
+            desc="Fetching selected drugs from disk",
         ):
             selected_drugs[drug_name] = {
                 "gene_mat": pd.read_csv(
@@ -47,34 +49,34 @@ def filter_drugs(kwargs: Kwargs):
                 ),
             }
     else:
+        # fetch the drugs passing the cell lines threshold and these cell lines
         drugs_cells = select_by_drug(
             kwargs.data.processed_files.discretized_matrix,
             kwargs.training.cell_lines_thresh,
         )
+
+        # fetch the gene expression matrix for the retrieved cell lines for each drug
         for drug, cell_lines in tqdm(
             drugs_cells.items(), desc="selecting individual gene matrix per drug ..."
         ):
-            present_cell_lines = sorted(
-                list(
-                    set(kwargs.data.processed_files.gene_matrix.columns).intersection(
-                        [str(cl) for cl in cell_lines]
-                    )
-                )
+            present_cell_lines = list(
+                set(
+                    kwargs.data.processed_files.gene_matrix.columns.astype(int)
+                ).intersection(cell_lines)
             )
             drug_df = kwargs.data.processed_files.gene_matrix.loc[:, present_cell_lines]
 
-            int_index = [int(cl) for cl in present_cell_lines]
             labels = kwargs.data.processed_files.discretized_matrix.loc[
-                int_index, drug
+                present_cell_lines, drug
             ].to_list()
             ic_50 = kwargs.data.processed_files.ic50_matrix.loc[
-                int_index, drug
+                present_cell_lines, drug
             ].to_list()
             meta_data = pd.DataFrame(
                 {"Labels": labels, "ic_50": ic_50}, index=present_cell_lines
             )
 
-            if kwargs.matrices_output_dir is not None:
+            if kwargs.matrices_output_dir is not None and kwargs.output_selected_drugs:
                 drug_output_dir = os.path.join(kwargs.matrices_output_dir, drug)
                 os.makedirs(drug_output_dir, exist_ok=True)
                 drug_df.to_csv(os.path.join(drug_output_dir, "gene_mat.txt"), sep="\t")

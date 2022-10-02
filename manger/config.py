@@ -129,6 +129,7 @@ class DataConfing(BaseModel):
     output_num_feature: Optional[bool] = False
     num_features_file: Optional[str]
     drug_subset: Optional[Union[int, List[str]]]
+    acc_subset: Optional[list]
 
     # --- GDSC files ---
     ic50_gdsc_file: str  # path to tsv file
@@ -163,6 +164,7 @@ class Kwargs(BaseModel):
     data: DataConfing
     output_dir: str  # folder path to store model results
     overwrite_results: Optional[bool]
+    output_selected_drugs: bool = True  # TODO: can be removed when done
 
     @cached_property
     def method(self):
@@ -237,12 +239,12 @@ class Kwargs(BaseModel):
         if self.training.grid_search:
             return os.path.join(
                 self.results_dir,
-                f"gcv_{self.method}{self.weight}{self.bias}.jsonl",
+                f"grid_search_cross_validation.jsonl",
             )
         else:
             return os.path.join(
                 self.results_dir,
-                f"final_{self.method}{self.weight}{self.bias}.jsonl",
+                f"final_model.jsonl",
             )
 
     @cached_property

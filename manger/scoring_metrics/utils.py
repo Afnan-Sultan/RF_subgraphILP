@@ -21,16 +21,11 @@ def get_sensitivity(
     return true, pred
 
 
-def splits_stats(model_results: dict, regression: bool):
+def splits_stats(model_results: dict, subsets: list, regression: bool):
     """
     calculate the statistics of the cross validation folds results
     """
     ACCs_stats = {}
-    subsets = [
-        "_".join(metric.split("_")[1:])
-        for metric in model_results.keys()
-        if metric.startswith("ACCs")
-    ]
     for subset in subsets:
         subset_ACCs = model_results[f"ACCs_{subset}"]
         if regression:
@@ -59,19 +54,12 @@ def splits_stats(model_results: dict, regression: bool):
     return ACCs_stats
 
 
-def subsets_means(cv_results: dict, params_mean_perf: dict, regression: bool, idx: int):
+def subsets_means(
+    cv_results: dict, params_mean_perf: dict, subsets: list, regression: bool, idx: int
+):
     """
     calculate the results for the subsets of sensitive/resistant cell lines
     """
-
-    subsets = [
-        "_".join(
-            metric.split("_")[1:]
-        )  # reattach a metric if it's more than one syllabus (e.g., youden_j)
-        for metric in cv_results.keys()
-        if metric.startswith("ACCs")
-    ]
-
     for subset in subsets:
         if subset in params_mean_perf:
             if regression:
@@ -87,7 +75,6 @@ def subsets_means(cv_results: dict, params_mean_perf: dict, regression: bool, id
                 }
             else:
                 params_mean_perf[subset] = {idx: cv_results["stats"][f"{subset}_mean"]}
-    # return params_mean_perf
 
 
 def rank_parameters(parameters_grid, gcv_results, params_mean_perf, kwargs):
@@ -102,7 +89,7 @@ def rank_parameters(parameters_grid, gcv_results, params_mean_perf, kwargs):
     for subset, mean_scores in params_mean_perf.items():
         rank_params[subset] = {
             param_idx: score
-            for param_idx, score in sorted(  # mean_scores = dict{keys = [parameters_indices], values = [average score]}
+            for param_idx, score in sorted(
                 mean_scores.items(), key=lambda item: item[1], reverse=reverse
             )
         }
@@ -117,4 +104,4 @@ def rank_parameters(parameters_grid, gcv_results, params_mean_perf, kwargs):
         for subset, rank in rank_params.items()
         if subset == "sensitivity"
     ][0]
-    return best_params  # gcv_results
+    return best_params
