@@ -9,7 +9,7 @@
     "grid_search": false,
     "drugs_n_jobs": 1,
     "bias_rf": true,
-    "output_trees_info": true,
+    "output_trees_info": false,
     "sauron": true,
     "bias_pct": 1,
     "num_kfold": 5,
@@ -27,7 +27,7 @@
     "cell_lines_thresh":800
   },
   "model": {
-    "models": ["subgraphilp"]
+    "models": ["corr_thresh"]
   },
   "data": {
     "gene_matrix_file": "data/gdsc/GDSC_RMA_proc_gene_expression_preprocessed_replicate_removed_8_10_2020.txt",

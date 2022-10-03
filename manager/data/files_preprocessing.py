@@ -2,8 +2,8 @@ import logging
 from functools import cached_property
 
 import pandas as pd
-from manger.data.gene_matrix_processing import mapped_gene_matrix, render_mat
-from manger.data.network_processing import fetch_target_nodes, mapped_nodes
+from manager.data.gene_matrix_processing import mapped_gene_matrix, render_mat
+from manager.data.network_processing import fetch_target_nodes, mapped_nodes
 
 logger = logging.getLogger(__name__)
 

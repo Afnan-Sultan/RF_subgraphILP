@@ -1,9 +1,9 @@
 import logging
 
 import pandas as pd
-from manger.config import Kwargs
-from manger.models.random_forest import which_rf
-from manger.scoring_metrics.utils import splits_stats
+from manager.config import Kwargs
+from manager.models.random_forest import which_rf
+from manager.scoring_metrics.utils import splits_stats
 from sklearn.model_selection import StratifiedKFold
 
 logger = logging.getLogger(__name__)

@@ -27,7 +27,7 @@ def get_files(results_path, condition):
         os.path.join(folder, file)
         for folder in folders
         for file in os.listdir(folder)
-        if os.path.isfile(os.path.join(folder, file)) and condition in file
+        if os.path.isfile(os.path.join(folder, file)) and file.endswith("jsonl")
     ]
     return files
 
@@ -54,12 +54,15 @@ def get_targeted_drugs(drugs_dict):
         return None
 
 
-def fetch_models(drugs_dict, drug, models, prefix, suffix):
+def fetch_models(drugs_dict, drug, models, prefix, suffix, file):
     for model, results in models.items():
         if model == "parameters_grid":
             new_name = "parameters_grid"
         elif model == "original":
-            new_name = "rf"
+            if "sauron" in file:
+                new_name = "rf_sauron"
+            else:
+                new_name = "rf"
         elif model == "subgraphilp":
             new_name = f"{prefix}{model}{suffix}"
         else:
@@ -83,15 +86,15 @@ def aggregate_result_files(results_path, condition, targeted=False):
         drugs_with_targets = get_targeted_drugs(target_dd)
 
     for file in files:
-        if "sauron" in file:
-            suffix1 = "_sauron"
-        else:
-            suffix1 = ""
         if "biased" in file:
-            suffix2 = "rf_trees"
+            suffix1 = "_rf_trees"
         else:
-            suffix2 = "rf"
-        suffix = f"{suffix1}_{suffix2}"
+            suffix1 = "_rf"
+        if "sauron" in file:
+            suffix2 = "_sauron"
+        else:
+            suffix2 = ""
+        suffix = f"{suffix1}{suffix2}"
         if targeted and "targeted" in file:
             prefix = "targeted_"
         elif (
@@ -105,9 +108,13 @@ def aggregate_result_files(results_path, condition, targeted=False):
         for drug, models in dd.items():
             if targeted and drugs_with_targets is not None:
                 if drug in drugs_with_targets:
-                    drugs_dict = fetch_models(drugs_dict, drug, models, prefix, suffix)
+                    drugs_dict = fetch_models(
+                        drugs_dict, drug, models, prefix, suffix, file
+                    )
             elif not targeted:
-                drugs_dict = fetch_models(drugs_dict, drug, models, prefix, suffix)
+                drugs_dict = fetch_models(
+                    drugs_dict, drug, models, prefix, suffix, file
+                )
             else:
                 warnings.warn("no results for drugs with targets found")
     return drugs_dict
@@ -143,13 +150,6 @@ def best_est_info(drugs_dict):
     }
 
 
-def ml_methods_best_est_info(drugs_summary):
-    ml_est_info = {}
-    for ml_method, drugs_dict in drugs_summary.items():
-        ml_est_info[ml_method] = best_est_info(drugs_dict)
-    return ml_est_info
-
-
 def compare_params(estimators_dict, txt):
     df = pd.json_normalize(estimators_dict[txt.split("_")[1]]["best_params"])
     df.columns = df.columns.str.split(".").map(tuple)
@@ -169,7 +169,6 @@ def organize_results(
     sub_metric_list,
     params_acc_stat="mean",
 ):
-
     best_est_fit_runtime = {}
     best_est_test_runtime = {}
     best_est_runtime = {}
@@ -367,18 +366,3 @@ def aggregate_multi_level_dict(main_dict, regression, levels, rename=None):
         for k, v in key_aggregated_dict.items():
             aggregated_dict[k] = v
     return aggregated_dict
-
-
-def ml_methods_acc_runtime(drugs_summary):
-    acc_runtime_info = {}
-    for ml_method, drugs_dict in drugs_summary.items():
-        acc_runtime_info[ml_method] = {}
-        if ml_method == "regression":
-            regression = True
-        else:
-            regression = False
-        best_model_acc, all_params_acc, rf_runtime = acc_runtime(drugs_dict, regression)
-        acc_runtime_info[ml_method]["acc_dict"] = best_model_acc
-        acc_runtime_info[ml_method]["runtime_to_plot"] = rf_runtime
-        acc_runtime_info[ml_method]["all_params_avg"] = all_params_acc
-    return acc_runtime_info

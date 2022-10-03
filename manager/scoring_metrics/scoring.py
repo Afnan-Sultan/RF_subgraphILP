@@ -2,8 +2,8 @@ import json
 
 import numpy as np
 import pandas as pd
-from manger.scoring_metrics.utils import get_sensitivity
-from manger.utils import NewJsonEncoder
+from manager.scoring_metrics.utils import get_sensitivity
+from manager.utils import NewJsonEncoder
 from sklearn.metrics import (
     balanced_accuracy_score,
     confusion_matrix,

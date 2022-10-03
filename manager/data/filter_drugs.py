@@ -2,7 +2,7 @@ import logging
 import os
 
 import pandas as pd
-from manger.config import Kwargs
+from manager.config import Kwargs
 from tqdm import tqdm
 
 logger = logging.getLogger(__name__)
@@ -60,12 +60,13 @@ def filter_drugs(kwargs: Kwargs):
             drugs_cells.items(), desc="selecting individual gene matrix per drug ..."
         ):
             present_cell_lines = list(
-                set(
-                    kwargs.data.processed_files.gene_matrix.columns.astype(int)
-                ).intersection(cell_lines)
+                set(kwargs.data.processed_files.gene_matrix.columns).intersection(
+                    str(cl) for cl in cell_lines
+                )
             )
             drug_df = kwargs.data.processed_files.gene_matrix.loc[:, present_cell_lines]
 
+            present_cell_lines = drug_df.columns.astype(int)
             labels = kwargs.data.processed_files.discretized_matrix.loc[
                 present_cell_lines, drug
             ].to_list()

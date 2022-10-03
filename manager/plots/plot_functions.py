@@ -1,40 +1,47 @@
 import os
 from math import ceil
 
+import matplotlib
 import matplotlib.pyplot as plt
 import pandas as pd
-from manger.plots.plot_helpers import (
+from manager.plots.plot_helpers import (
     get_ax_legends,
     label_plot,
     plot_df_stats,
     plot_subplots,
     plot_with_bar_labels,
 )
-from manger.plots.plot_leveled import plot_levels
-from manger.plots.process_results import serialize_dict
+from manager.plots.plot_leveled import plot_levels
+from manager.plots.process_results import serialize_dict
+
+matplotlib.use("TkAgg")
 
 
 def plot_runtime(df, title, bar_label_font=10, xlabel_font=15, output_dir="figures"):
     os.makedirs(output_dir, exist_ok=True)
     plot_with_bar_labels(
-        df["gcv_runtime"].groupby(level=0).mean(),
-        f"mean grid search cross validation {title}",
+        df["gcv_runtime"].groupby(level=0).mean() / 60,
+        f"mean grid search cross validation {title} (minutes)",
         bar_label_font,
         xlabel_font,
         output_dir,
     )
     plot_with_bar_labels(
-        df["model_runtime"].groupby(level=0).mean(),
-        f"mean best model {title}",
+        df["model_runtime"].groupby(level=0).mean() / 60,
+        f"mean best model {title} (minutes)",
         bar_label_font,
         xlabel_font,
         output_dir,
     )
 
     grouped_df = df.drop(["gcv_runtime", "model_runtime"], axis=1).groupby(level=0)
-    mean_df = grouped_df.mean()
+    mean_df = grouped_df.mean() / 60
     plot_with_bar_labels(
-        mean_df, f"mean Random Forest {title}", bar_label_font, xlabel_font, output_dir
+        mean_df,
+        f"mean Random Forest {title} (minutes)",
+        bar_label_font,
+        xlabel_font,
+        output_dir,
     )
 
 
@@ -383,7 +390,7 @@ def plot_features_importance(
         for idx, model in enumerate(drug_df.index):
             ax = plt.subplot(ceil(len(drug_df)), 2, idx + 1)
             temp_df = df_list[idx].copy(deep=True)
-            temp_df.iloc[:, 0] = temp_df.iloc[:, 0].astype(float)
+            temp_df[temp_df.columns[0]] = temp_df.iloc[:, 0].astype(float)
             temp_df.plot(x="GeneSymbol", ax=ax, kind="bar", figsize=figsize2, rot=xrot)
             ax.set_title(model)
 

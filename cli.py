@@ -7,9 +7,9 @@ import typer as typer
 from joblib import Parallel, delayed
 from tqdm import tqdm
 
-from manger.config import Kwargs
-from manger.data.filter_drugs import filter_drugs
-from manger.train import train_models
+from manager.config import Kwargs
+from manager.data.filter_drugs import filter_drugs
+from manager.train import train_models
 
 app = typer.Typer()
 
@@ -82,5 +82,5 @@ def train(
 
 
 if __name__ == "__main__":
-    train("config.json")
+    # train("config.json")
     app()

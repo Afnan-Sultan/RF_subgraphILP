@@ -26,7 +26,7 @@
 * `config.json` is an example for parameters file to be passed
   * Other parameters can be found in `manager/config.py`
 * To train models with the specified parameters (or parameters grid) in `config.json` and/or test it on best performing parameters (in case of parameters grid)
-  * `$ python3 cli.py train config.json`
+  * `$ python3 cli.py config.json`
 * The results are exported to a new folder `results`
 * The results can be plotted using `manger/plots/main.py` where the figures will be exported to `figures` folder
 

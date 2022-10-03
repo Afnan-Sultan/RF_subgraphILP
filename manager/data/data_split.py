@@ -3,8 +3,8 @@ import logging
 import os
 
 import pandas as pd
-from manger.config import Kwargs
-from manger.utils import NewJsonEncoder
+from manager.config import Kwargs
+from manager.utils import NewJsonEncoder
 
 logger = logging.getLogger(__name__)
 

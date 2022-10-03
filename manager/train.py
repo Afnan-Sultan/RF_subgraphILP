@@ -1,11 +1,11 @@
 import json
 import logging
 
-from manger.config import Kwargs
-from manger.data.data_split import split_data
-from manger.training.grid_search_cv import grid_search_cv
-from manger.training.train_best_parameters import best_model
-from manger.utils import NewJsonEncoder, get_thresh
+from manager.config import Kwargs
+from manager.data.data_split import split_data
+from manager.training.grid_search_cv import grid_search_cv
+from manager.training.train_best_parameters import best_model
+from manager.utils import NewJsonEncoder, get_thresh
 
 logger = logging.getLogger(__name__)
 

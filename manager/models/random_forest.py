@@ -5,14 +5,14 @@ from math import ceil
 from typing import List, Union
 
 import pandas as pd
-from manger.config import Kwargs
-from manger.models.utils.biased_random_forest import (
+from manager.config import Kwargs
+from manager.models.utils.biased_random_forest import (
     BiasedRandomForestClassifier,
     BiasedRandomForestRegressor,
 )
-from manger.scoring_metrics.scoring import calc_accuracy
-from manger.training.feature_selection import feature_selection
-from manger.training.weighting_samples import (
+from manager.scoring_metrics.scoring import calc_accuracy
+from manager.training.feature_selection import feature_selection
+from manager.training.weighting_samples import (
     calculate_linear_weights,
     calculate_simple_weights,
 )

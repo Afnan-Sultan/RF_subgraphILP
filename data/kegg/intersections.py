@@ -1,6 +1,5 @@
 import pandas as pd
-
-from manger.data.network_processing import mapped_nodes
+from manager.data.network_processing import mapped_nodes
 
 kegg_entrez, kegg_aggregates = mapped_nodes(
     "kegg_hsa.Entrez-Gene.na", "kegg_hsa.aggregate.na"
