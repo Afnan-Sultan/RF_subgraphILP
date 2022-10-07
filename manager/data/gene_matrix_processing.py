@@ -44,4 +44,4 @@ def mapped_gene_matrix(gene_mat, entrez_symbols, node_entrez):
     return (
         matched_matrix,
         final_matrix,
-    )  # TODO: remove one of them. So far, they are the same
+    )  # TODO: remove one of them.

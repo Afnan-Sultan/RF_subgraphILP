@@ -76,6 +76,7 @@ def grid_search_cv(
             kwargs.training.regression,
             idx,
         )
+    kwargs.training.gcv_idx = None
 
     # update gcv_results with parameters rank and retrieve the best parameters (based on sensitive cell lines scores)
     best_params = rank_parameters(

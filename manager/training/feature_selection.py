@@ -1,4 +1,5 @@
 import logging
+import random
 from math import ceil
 from typing import Union
 
@@ -27,8 +28,7 @@ def feature_selection(
     """
     model = kwargs.model.current_model
 
-    # identify important features
-    if model == "subgraphilp":  # using network ILP
+    if model == "subgraphilp":
         model_features = subgraphilp_model(
             train_features, train_classes, kwargs, tree_idx
         )
@@ -46,11 +46,13 @@ def feature_selection(
             corr_sorted_scores = (
                 train_features.corrwith(train_scores).sort_values().abs()
             )
-            if (
-                model == "corr_num"
-            ):  # using the top-k number of correlated features to ic50. k_corr = k_ILP
+            if model == "corr_num":
+                # using the top-k number of correlated features to ic50. k_corr = k_ILP
                 model_features = corr_sorted_scores.index.to_list()[:num_features]
-            else:  # using the features that have correlation with the ic_50 scores higher than or equal a threshold
+            else:
+                # using the features that have correlation with the ic_50 scores higher than or equal a threshold
+                # when no features exist, a predefined percentage of the features is selected from the highest
+                # correlated features
                 model_features = corr_sorted_scores[
                     corr_sorted_scores.values >= kwargs.training.corr_thresh
                 ].index.to_list()
@@ -61,14 +63,15 @@ def feature_selection(
                     num_features = ceil(
                         kwargs.training.corr_thresh_sub * len(corr_sorted_scores)
                     )
-                    model_features = corr_sorted_scores[:num_features].index.to_list()
-
-        elif model == "random":  # using k randomly selected features. k_random = k_ILP
+                    model_features = corr_sorted_scores.iloc[
+                        :num_features
+                    ].index.to_list()
+        elif model == "random":
+            # using k randomly selected features. k_random = k_ILP
             if kwargs.training.bias_rf:
-                rand_features = random_samples(
-                    train_features.columns.to_list(), num_features, n_rand=1
+                model_features = random.sample(
+                    train_features.columns.to_list(), num_features
                 )
-                model_features = rand_features[0]
             else:
                 rand_features = random_samples(
                     train_features.columns.to_list(),
@@ -81,22 +84,22 @@ def feature_selection(
 
     # select the new train and test features
     if model == "random" and not kwargs.training.bias_rf:
-        model_train_features = (
-            None  # it will be assigned later for each randomly selected subset
-        )
+        # it will be assigned later for each randomly selected subset
+        model_train_features = None
     else:
         model_train_features = train_features.loc[:, model_features]
 
-    if test_features is None:  # subset train features only
+    if test_features is None:
+        # subset train features only
         return {"features": model_features, "train_features": model_train_features}
-    else:  # subset both train and test features because we will be doing feature selection without biasing rf.
+    else:
+        # subset both train and test features because we will be doing feature selection without biasing rf.
         # should be invoked only when NOT biasing random forest
         assert not kwargs.training.bias_rf
 
         if model == "random":
-            model_test_features = (
-                None  # it will be assigned later for each randomly selected subset
-            )
+            # it will be assigned later for each randomly selected subset
+            model_test_features = None
         else:
             model_test_features = test_features.loc[:, model_features]
 

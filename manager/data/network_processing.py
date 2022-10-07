@@ -68,10 +68,10 @@ def mapped_nodes(node_entrez_file, aggregate_file):
 
 def map_nodes_to_entrez(subgraph, mapping, aggregates):
     """
-    converts node IDs of the subgraph networks (or provided list of network node IDs), to entrez IDs.
-    each node is first checked if it's matched to an aggregated node, if matched, the list of aggregates are parsed to
-    the set of nodes, instead of the original aggregated node ID.
-    the final set of nodes is checked against the node-Entrez mapping and entrez IDs are returned instead.
+    Converts node IDs of the subgraph networks (or provided list of network node IDs), to entrez IDs.
+    Each node is checked if it's matched to an aggregated node, if matched, the list of aggregates are parsed to
+    the set of nodes (as these aggregates are the actual gene_corresponding_ids), instead of the original aggregated ID.
+    The final set of nodes is checked against the node-Entrez mapping and entrez IDs are returned instead.
 
     @param subgraph: pandas dataframe with columns=['source', 'edge', 'sink']
     @param mapping: pandas dataframe with columns=['node', 'GeneID']

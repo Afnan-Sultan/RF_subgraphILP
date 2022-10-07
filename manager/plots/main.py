@@ -54,15 +54,19 @@ def plot_drugs_acc_subsets(
             ),
         )
 
+    models_performance = {}
+    drug_preference = {}
     for subset, title in subsets.items():
         if best_model_acc:
-            plot_acc(
+            subset_models_performance, subset_drug_preference = plot_acc(
                 model_acc,
                 subset,
                 title,
                 plot_all=False,
                 output_dir=os.path.join(output_path, "best_model_performance"),
             )
+            models_performance[subset] = subset_models_performance
+            drug_preference[subset] = subset_drug_preference
         if parameters_acc:
             plot_params_acc(
                 params_acc[subset],
@@ -85,6 +89,7 @@ def plot_drugs_acc_subsets(
                     "splits",
                 ),
             )
+    return models_performance, drug_preference
 
 
 if __name__ == "__main__":
@@ -94,7 +99,7 @@ if __name__ == "__main__":
     simple_weight = True
     regression_ = True
     targeted_ = False
-    condition_ = "regression_weighted"
+    condition_ = "regression_weighted_biased_gt"
     n_features = 20
     hspace = 1.2
 
@@ -132,7 +137,7 @@ if __name__ == "__main__":
     plot_runtime(
         rf_runtime_, "runtime", output_dir=os.path.join(output_dir, "runtimes")
     )
-    plot_drugs_acc_subsets(
+    models, drugs = plot_drugs_acc_subsets(
         regression_,
         best_model_acc_,
         all_params_acc_,

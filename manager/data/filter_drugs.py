@@ -15,9 +15,7 @@ def select_by_drug(discretized_mat, num_cell_lines):
     drug_cell_dict = {}  # store cell lines associated with a drug
     for drug in discretized_mat:
         # ignore cell lines with NaN
-        used_cell_lines = discretized_mat[
-            discretized_mat[drug].notnull()
-        ].index.to_list()
+        used_cell_lines = discretized_mat[drug].dropna().index.to_list()
         num_cells = len(used_cell_lines)
         if num_cells >= num_cell_lines:
             drug_cell_dict[drug] = used_cell_lines
@@ -59,6 +57,7 @@ def filter_drugs(kwargs: Kwargs):
         for drug, cell_lines in tqdm(
             drugs_cells.items(), desc="selecting individual gene matrix per drug ..."
         ):
+            # not all samples reported from discretized_matrix are available in the gene matrix! TODO: expected?!
             present_cell_lines = list(
                 set(kwargs.data.processed_files.gene_matrix.columns).intersection(
                     str(cl) for cl in cell_lines

@@ -7,29 +7,23 @@ from typing import List, Union
 import pandas as pd
 from manager.config import Kwargs
 from manager.models.utils.biased_random_forest import (
-    BiasedRandomForestClassifier,
-    BiasedRandomForestRegressor,
-)
+    BiasedRandomForestClassifier, BiasedRandomForestRegressor)
 from manager.scoring_metrics.scoring import calc_accuracy
 from manager.training.feature_selection import feature_selection
-from manager.training.weighting_samples import (
-    calculate_linear_weights,
-    calculate_simple_weights,
-)
+from manager.training.weighting_samples import (calculate_linear_weights,
+                                                calculate_simple_weights)
 
 # from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
 
 
 def get_weights(train_scores, kwargs):
     if kwargs.training.weight_samples:
-        # calculate sample weights
         if kwargs.training.simple_weight:
-            weights = calculate_simple_weights(kwargs.data.drug_threshold, train_scores)
+            return calculate_simple_weights(kwargs.data.drug_threshold, train_scores)
         else:
-            weights = calculate_linear_weights(kwargs.data.drug_threshold, train_scores)
+            return calculate_linear_weights(kwargs.data.drug_threshold, train_scores)
     else:
-        weights = None
-    return weights
+        return None
 
 
 def get_feature_importance(rf, features_names, kwargs):
@@ -127,7 +121,7 @@ def do_rf(
     test_runtime = time.time() - start
 
     if output_preds:
-        # output predictions in case later analysis are needed. Only used for best model.
+        # output predictions in case later analysis are needed. Only used for best model in case of grid search.
         output_file = os.path.join(kwargs.intermediate_output, kwargs.data.drug_name)
         os.makedirs(output_file, exist_ok=True)
         output_file = os.path.join(
@@ -256,17 +250,17 @@ def which_rf(
             num_features,
             num_trees_features,
         ) = do_rf(
-            rf_params,
-            features,
-            train_features,
-            train_labels,
-            train_scores,
-            train_classes,
-            test_features,
-            test_labels,
-            test_classes,
-            kwargs,
-            output_preds,
+            rf_params=rf_params,
+            features_names=features,
+            train_features=train_features,
+            train_labels=train_labels,
+            train_scores=train_scores,
+            train_classes=train_classes,
+            test_features=test_features,
+            test_labels=test_labels,
+            test_classes=test_classes,
+            kwargs=kwargs,
+            output_preds=output_preds,
         )
     else:
         to_rf = feature_selection(
@@ -275,16 +269,16 @@ def which_rf(
 
         if model == "random":
             fit_runtime, test_runtime, acc = get_rand_rf_results(
-                rf_params,
-                to_rf["features"],
-                train_features,
-                test_features,
-                train_labels,
-                test_labels,
-                train_scores,
-                train_classes,
-                test_classes,
-                kwargs,
+                rf_params=rf_params,
+                features_list=to_rf["features"],
+                train_features=train_features,
+                test_features=test_features,
+                train_labels=train_labels,
+                test_labels=test_labels,
+                train_scores=train_scores,
+                train_classes=train_classes,
+                test_classes=test_classes,
+                kwargs=kwargs,
             )
             sorted_features = (
                 num_features_overall
@@ -299,17 +293,17 @@ def which_rf(
                 num_features,
                 num_trees_features,
             ) = do_rf(
-                rf_params,
-                to_rf["features"],
-                to_rf["train_features"],
-                train_labels,
-                train_scores,
-                train_classes,
-                to_rf["test_features"],
-                test_labels,
-                test_classes,
-                kwargs,
-                output_preds,
+                rf_params=rf_params,
+                features_names=to_rf["features"],
+                train_features=to_rf["train_features"],
+                test_features=to_rf["test_features"],
+                train_labels=train_labels,
+                test_labels=test_labels,
+                train_scores=train_scores,
+                train_classes=train_classes,
+                test_classes=test_classes,
+                kwargs=kwargs,
+                output_preds=output_preds,
             )
     return (
         fit_runtime,

@@ -453,8 +453,8 @@ def _parallel_build_trees(
         else:
             tree.biased_feature_importance = tree.feature_importances_
 
-        # identify leaf class if sauron is required during regression
         if kwargs.training.regression and kwargs.training.sauron:
+            # identify leaf class if sauron is required during regression
             (
                 tree.leaf_samples,
                 tree.leaf_classes,

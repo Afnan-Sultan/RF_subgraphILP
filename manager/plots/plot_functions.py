@@ -72,6 +72,8 @@ def plot_acc(
             inplace=True,
         )
 
+    models_performance = {}
+    drugs_preference = {}
     # prepare a plot for each drug, only when a subset is specified for time's sake
     if subset is not None:
         new_df = df.stack([2, 0, 1]).reset_index(0, drop=True)
@@ -84,10 +86,12 @@ def plot_acc(
             plt.close()
         elif plot_single_drugs:  # to plot all drugs individually
             drug_out_dir = os.path.join(output_dir, f"{subset}_per_drug")
-            for drug in set(new_df.index.get_level_values(0)):
-                os.makedirs(drug_out_dir, exist_ok=True)
+            os.makedirs(drug_out_dir, exist_ok=True)
 
-                ax = new_df.loc[drug].plot(kind="bar", figsize=figsize)
+            for drug in set(new_df.index.get_level_values(0)):
+                drug_df = new_df.loc[drug]
+
+                ax = drug_df.plot(kind="bar", figsize=figsize)
                 label_plot(
                     ax,
                     f"{title} - {drug}",
@@ -96,8 +100,32 @@ def plot_acc(
                     labels_color,
                     transparency,
                 )
+
+                best_models = drug_df[
+                    drug_df["test_score"] == drug_df["test_score"].min()
+                ].index.to_list()
+                drugs_preference[drug] = best_models
+                for model in best_models:
+                    if model in models_performance:
+                        models_performance[model].append(drug)
+                    else:
+                        models_performance[model] = [drug]
     else:
         new_df = df.stack([0, 1, 2]).reset_index(0, drop=True)
+
+    ax = pd.DataFrame(
+        [len(val) for val in models_performance.values()],
+        index=list(models_performance.keys()),
+        columns=["drugs_count"],
+    ).plot(kind="bar", figsize=figsize)
+    label_plot(
+        ax,
+        f"models performance - {subset}",
+        output_dir,
+        bar_label_font,
+        labels_color,
+        transparency,
+    )
 
     if plot_all:
         plot_levels(new_df, f"{title}_drugs", output_dir, add_vals=False, lypos=-0.3)
@@ -145,6 +173,7 @@ def plot_acc(
             labels_color,
             transparency,
         )
+    return models_performance, drugs_preference
 
 
 def plot_param_selection(

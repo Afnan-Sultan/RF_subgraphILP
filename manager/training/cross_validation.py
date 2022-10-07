@@ -129,17 +129,22 @@ def get_rand_cv_results(
         if len(rand_cv_results) > 1:
             rand_cv_results["train_runtime"].append(cv_results["train_runtime"])
             rand_cv_results["test_runtime"].append(cv_results["test_runtime"])
+            rand_cv_results["stats"].append(cv_results["stats"])
             for subset in subsets:
                 rand_cv_results[f"ACCs_{subset}"].append(cv_results[f"ACCs_{subset}"])
         else:
             rand_cv_results = {
                 "train_runtime": [cv_results["train_runtime"]],
                 "test_runtime": [cv_results["test_runtime"]],
+                "stats": [cv_results["stats"]],
             }
             for subset in subsets:
                 rand_cv_results[f"ACCs_{subset}"] = [cv_results[f"ACCs_{subset}"]]
 
     for metric, values in rand_cv_results.items():
-        rand_cv_results[metric] = pd.DataFrame(values).mean()
+        if metric == "stats":
+            rand_cv_results[metric] = pd.DataFrame(values).mean().to_dict()
+        else:
+            rand_cv_results[metric] = pd.DataFrame(values).mean().to_list()
 
     return rand_cv_results

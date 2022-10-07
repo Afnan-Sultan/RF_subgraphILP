@@ -38,7 +38,17 @@ def read_results_file(input_file):
         json_data = re.sub(r"}\s*{", "},{", file.read())  # when json file is indented
         for drug in json.loads("[" + json_data + "]"):
             for drug_name, results in drug.items():
-                drugs_dict[drug_name] = results
+                if drug_name in drugs_dict:
+                    for model, scores in results.items():
+                        if model not in drugs_dict[drug_name]:
+                            drugs_dict[drug_name][model] = scores
+                        else:
+                            warnings.warn(
+                                f"the key '{model}' for {drug_name} is already present. "
+                                f"The second occurrence is skipped"
+                            )
+                else:
+                    drugs_dict[drug_name] = results
     return drugs_dict
 
 
@@ -68,6 +78,8 @@ def fetch_models(drugs_dict, drug, models, prefix, suffix, file):
         else:
             new_name = f"{model}{suffix}"
         if drug in drugs_dict:
+            if new_name in drugs_dict[drug]:
+                warnings.warn(f"{new_name} already exists")
             drugs_dict[drug][new_name] = results
         else:
             drugs_dict[drug] = {new_name: results}

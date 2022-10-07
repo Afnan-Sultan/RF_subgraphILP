@@ -25,12 +25,6 @@ def best_model(
     return: dict of results for the final model
     """
 
-    # output the selected number of features to be used for the random model
-    if "subgraphilp" in kwargs.model.current_model:
-        kwargs.data.output_num_feature = True
-    else:
-        kwargs.data.output_num_feature = False
-
     start = time.time()
     (
         fit_runtime,
@@ -41,17 +35,22 @@ def best_model(
         num_features,
         num_trees_features,
     ) = which_rf(
-        best_params,
-        train_features,
-        train_classes,
-        train_scores,
-        train_labels,
-        test_features,
-        test_labels,
-        test_classes,
-        kwargs,
+        rf_params=best_params,
+        train_features=train_features,
+        train_classes=train_classes,
+        train_scores=train_scores,
+        train_labels=train_labels,
+        test_features=test_features,
+        test_labels=test_labels,
+        test_classes=test_classes,
+        kwargs=kwargs,
         output_preds=True,
     )
+
+    # output the selected number of features to be used for the random model
+    if "subgraphilp" in kwargs.model.current_model:
+        with open(kwargs.subgraphilp_num_features_output_file, "a") as out_num_features:
+            out_num_features.write(f"{kwargs.data.drug_name},{num_features}\n")
 
     return {
         "params": best_params,
