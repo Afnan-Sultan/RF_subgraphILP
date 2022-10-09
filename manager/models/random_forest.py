@@ -7,11 +7,15 @@ from typing import List, Union
 import pandas as pd
 from manager.config import Kwargs
 from manager.models.utils.biased_random_forest import (
-    BiasedRandomForestClassifier, BiasedRandomForestRegressor)
+    BiasedRandomForestClassifier,
+    BiasedRandomForestRegressor,
+)
 from manager.scoring_metrics.scoring import calc_accuracy
 from manager.training.feature_selection import feature_selection
-from manager.training.weighting_samples import (calculate_linear_weights,
-                                                calculate_simple_weights)
+from manager.training.weighting_samples import (
+    calculate_linear_weights,
+    calculate_simple_weights,
+)
 
 # from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
 
@@ -120,6 +124,7 @@ def do_rf(
     predictions = rf.predict(test_features)
     test_runtime = time.time() - start
 
+    # evaluation metrics
     if output_preds:
         # output predictions in case later analysis are needed. Only used for best model in case of grid search.
         output_file = os.path.join(kwargs.intermediate_output, kwargs.data.drug_name)
@@ -130,7 +135,6 @@ def do_rf(
     else:
         output_file = None
 
-    # evaluation metrics
     acc = calc_accuracy(
         test_labels, predictions, test_classes, kwargs.training.regression, output_file
     )

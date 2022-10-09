@@ -39,8 +39,7 @@ class BiasedDecisionTreeRegressor(DecisionTreeRegressor):
         # this property will be used to set non-used features to zero when passed to the random forest
         self.biased_feature_importance = None
         self.bootstrapped_samples = None
-        self.leaf_samples = None
-        self.leaf_classes = None
+        self.leaf_classes_dfs = None
         self.leaf_class_assignments = None
 
 

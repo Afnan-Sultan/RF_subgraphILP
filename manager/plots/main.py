@@ -93,13 +93,13 @@ def plot_drugs_acc_subsets(
 
 
 if __name__ == "__main__":
-    results_path_ = "../../results_2_10_22"
+    results_path_ = "../../results_larger"
 
     weighted = True
     simple_weight = True
     regression_ = True
     targeted_ = False
-    condition_ = "regression_weighted_biased_gt"
+    condition_ = "regression_weighted"
     n_features = 20
     hspace = 1.2
 
@@ -117,7 +117,7 @@ if __name__ == "__main__":
         dir2 = "targeted"
     else:
         dir2 = "not_targeted"
-    output_dir = os.path.join("../../figures_v2", dir0, dir1, dir2)
+    output_dir = os.path.join("../../figures_v3", dir0, dir1, dir2)
 
     # load results
     drugs_dict_ = aggregate_result_files(results_path_, condition_, targeted_)
@@ -148,7 +148,7 @@ if __name__ == "__main__":
         param_train_error=True if parameters_grid else False,
         best_model_acc=True,
         parameters_acc=True if parameters_grid else False,
-        splits=True,
+        splits=False,
         hspace=hspace,
     )
 

@@ -126,7 +126,7 @@ class DataConfing(BaseModel):
     # dynamic fields
     drug_name: Optional[str]
     drug_threshold: Optional[float]
-    output_num_feature: Optional[bool] = False
+    output_num_feature: Optional[bool] = True
     num_features_file: Optional[str]
     drug_subset: Optional[Union[int, List[str]]]
     acc_subset: Optional[list]
@@ -254,7 +254,7 @@ class Kwargs(BaseModel):
     @cached_property
     def subgraphilp_num_features_output_file(self) -> str:
         doc = os.path.join(self.results_dir, "subgraph_num_features.txt")
-        if self.data.output_num_feature and not os.path.isfile(doc):
+        if not os.path.isfile(doc):
             with open(doc, "w") as temp:
                 temp.write("drug_name,num_features\n")
         return doc

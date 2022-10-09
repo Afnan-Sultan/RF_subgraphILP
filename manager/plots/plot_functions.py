@@ -113,6 +113,7 @@ def plot_acc(
     else:
         new_df = df.stack([0, 1, 2]).reset_index(0, drop=True)
 
+    # plot number of drugs the reported best results for each model
     ax = pd.DataFrame(
         [len(val) for val in models_performance.values()],
         index=list(models_performance.keys()),
@@ -172,6 +173,7 @@ def plot_acc(
             output_dir,
             labels_color,
             transparency,
+            each_column=True,
         )
     return models_performance, drugs_preference
 

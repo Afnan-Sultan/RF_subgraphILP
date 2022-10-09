@@ -10,8 +10,9 @@ For file pre-processing:
 2- the relevant rows of drug identifier and cell lines were stored as csv file
 """
 
-import pandas as pd
 import statistics
+
+import pandas as pd
 
 nci60 = pd.read_csv("nci60_database.csv", encoding="ISO-8859-1")
 drug_cell_lines = {}
@@ -22,10 +23,15 @@ for _, row in nci60.iterrows():
     else:
         drug_cell_lines[drug_name] = set(row.drop(["NSC #"]).dropna().index.to_list())
 cl_per_drugs = {drug: len(cell_lines) for drug, cell_lines in drug_cell_lines.items()}
-pd.DataFrame(cl_per_drugs, index=["cell_lines_count"]).transpose().to_csv("cl_per_drug_nci60.csv")
+pd.DataFrame(cl_per_drugs, index=["cell_lines_count"]).transpose().to_csv(
+    "cl_per_drug_nci60.csv"
+)
 print("number of drugs = ", len(cl_per_drugs))
 print("average cell lines per drugs = ", statistics.mean(cl_per_drugs.values()))
-print("standard deviation cell lines per drugs = ", statistics.stdev(cl_per_drugs.values()))
+print(
+    "standard deviation cell lines per drugs = ",
+    statistics.stdev(cl_per_drugs.values()),
+)
 
 cell_lines = nci60.columns.to_list()[1:]
 type_cell_line = {}
@@ -37,8 +43,15 @@ for cl in cell_lines:
         type_cell_line[cl_type].append(cl_subtype)
     else:
         type_cell_line[cl_type] = [cl_subtype]
-cl_per_type = {cl_type: len(cl_subtypes) for cl_type, cl_subtypes in type_cell_line.items()}
-pd.DataFrame(cl_per_type, index=["num_cell_lines"]).transpose().to_csv("cl_per_type_nci60.csv")
+cl_per_type = {
+    cl_type: len(cl_subtypes) for cl_type, cl_subtypes in type_cell_line.items()
+}
+pd.DataFrame(cl_per_type, index=["num_cell_lines"]).transpose().to_csv(
+    "cl_per_type_nci60.csv"
+)
 print("\nnumber of cell lines = ", len(cl_per_type))
 print("average cell lines per cancer type =", statistics.mean(cl_per_type.values()))
-print("standard deviation cell lines per cancer type =", statistics.stdev(cl_per_type.values()))
+print(
+    "standard deviation cell lines per cancer type =",
+    statistics.stdev(cl_per_type.values()),
+)

@@ -305,7 +305,7 @@ def output_tree_info(
             tree_output.write("\n")
 
 
-def leaf_class_assignment(tree, bootstrapped_X, X_classes):
+def leaf_class_assignment(tree, bootstrapped_X, X_classes, bootstrapped_X_weights):
     """
     assign a class for the RF_Regressor leafs after fitting, based on pre-defined samples' classification
 
@@ -324,23 +324,30 @@ def leaf_class_assignment(tree, bootstrapped_X, X_classes):
         cell_line = cell_lines[sample_idx]
         if leaf in leaf_samples:
             leaf_samples[leaf].append(cell_line)
-            leaf_classes[leaf].append(X_classes.loc[cell_line])
+            leaf_classes[leaf].append(
+                [X_classes.loc[cell_line], bootstrapped_X_weights.loc[cell_line]]
+            )
         else:
             leaf_samples[leaf] = [cell_line]
-            leaf_classes[leaf] = [X_classes.loc[cell_line]]
-
-    # sort for easier visualization when needed
-    # leaf_samples = {leaf: sorted(val) for leaf, val in leaf_samples.items()}
-    # leaf_classes = {
-    #     leaf: sorted(val, reverse=True) for leaf, val in leaf_classes.items()
-    # }
+            leaf_classes[leaf] = [
+                [X_classes.loc[cell_line], bootstrapped_X_weights.loc[cell_line]]
+            ]
+    leaf_classes_dfs = {
+        leaf: pd.DataFrame(
+            assignment, columns=["label", "weight"], index=leaf_samples[leaf]
+        )
+        for leaf, assignment in leaf_classes.items()
+    }
 
     # fetch the corresponding class for each leaf by majority vote over the `leaf_classes`
     leaf_assignments = {
-        leaf: 1 if samples_classes.count(1) >= samples_classes.count(0) else 0
-        for leaf, samples_classes in leaf_classes.items()
+        leaf: 1
+        if assignment_df[assignment_df["label"] == 1]["weight"].sum()
+        >= assignment_df[assignment_df["label"] == 0]["weight"].sum()
+        else 0
+        for leaf, assignment_df in leaf_classes_dfs.items()
     }
-    return leaf_samples, leaf_classes, leaf_assignments
+    return leaf_classes_dfs, leaf_assignments
 
 
 def bias_feature_importance(tree, features_name):
@@ -407,6 +414,25 @@ def _parallel_build_trees(
         bootstrapped_X_scores = train_scores.iloc[indices]
         bootstrapped_X_classes = train_classes.iloc[indices]
 
+        if sample_weight is None:
+            # set the weight of each sample to 1
+            unique_samples = list(set(tree.bootstrapped_samples))
+            bootstrapped_X_weights = pd.Series(
+                [1] * len(unique_samples), index=unique_samples
+            )
+        else:
+            # identify the weight used for each sample in the bootstrapped sample.
+            # DataFrame is used for easier duplicates drop. Duplicates are removed for lack of importance
+            bootstrapped_X_weights = (
+                pd.DataFrame([tree.bootstrapped_samples, sample_weight[indices]])
+                .transpose()
+                .drop_duplicates()
+            )
+            # faster to process when it's a series
+            bootstrapped_X_weights = pd.Series(
+                bootstrapped_X_weights[1].to_list(), index=bootstrapped_X_weights[0]
+            )
+
         biased_features = None
         if kwargs.training.bias_rf:
             # select features of those reported from the method of interest
@@ -456,10 +482,11 @@ def _parallel_build_trees(
         if kwargs.training.regression and kwargs.training.sauron:
             # identify leaf class if sauron is required during regression
             (
-                tree.leaf_samples,
-                tree.leaf_classes,
+                tree.leaf_classes_dfs,
                 tree.leaf_class_assignments,
-            ) = leaf_class_assignment(tree, bootstrapped_X, train_classes)
+            ) = leaf_class_assignment(
+                tree, bootstrapped_X, train_classes, bootstrapped_X_weights
+            )
         # %%%%%%%%%%
     else:
         tree.fit(X, y, sample_weight=sample_weight, check_input=False)
@@ -699,6 +726,9 @@ def apply_sauron(model, test_df):
 
 
 def predict_sample(X_df, sample_idx, trees_indices, model, y_hat):
+    """
+    called when sauron is used. The trees' indices are determined for each sample according to apply_sauron function
+    """
     sample_estimates = 0
     for tree_idx in trees_indices:
         tree = model.estimators_[tree_idx]

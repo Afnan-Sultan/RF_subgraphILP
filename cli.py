@@ -76,11 +76,11 @@ def train(
         )
     else:
         for drug_name, data_split in tqdm(
-            selected_drugs_info.items(), desc="training models per drug..."
+            drugs_info.items(), desc="training models per drug..."
         ):
             train_models(drug_name, data_split, kwargs)
 
 
 if __name__ == "__main__":
-    train("config.json")
+    # train("config.json")
     app()

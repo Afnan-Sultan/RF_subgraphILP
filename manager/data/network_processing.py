@@ -3,16 +3,15 @@ import copy
 import pandas as pd
 
 
-def fetch_target_nodes(target_file_lines, node_entrez, entrez_symbols, sif):
+def fetch_target_nodes(drugs_targets, node_entrez, aggregates, entrez_symbols, sif):
     """
     Given a txt file of drug name and corresponding GeneSymbols, this function gets the matching entrez GeneIDs, and
     their correspondence node ids. It reports a node id only if it exists in the network file.
     """
     drug_target_node = {}
-    for line in target_file_lines:
-        line = line.split("\t")
-        drug_name = line[0]
-        drug_targets = [item.strip() for item in line[1].split(",")]
+    network_nodes = set(sif["source"].to_list()).intersection(sif["sink"].to_list())
+    for drug, targets in drugs_targets.items():
+        drug_targets = [target for target in targets.split(",")]
         for target in drug_targets:
             if target in entrez_symbols["GeneSymbol"].to_list():
                 gene_id_df = entrez_symbols[entrez_symbols["GeneSymbol"] == target]
@@ -20,14 +19,15 @@ def fetch_target_nodes(target_file_lines, node_entrez, entrez_symbols, sif):
                 if gene_id in node_entrez["GeneID"].to_list():
                     gene_node_df = node_entrez[node_entrez["GeneID"] == gene_id]
                     gene_node = gene_node_df["node"].to_list()[0]
-                    if (
-                        gene_node in sif["source"].to_list()
-                        or gene_node in sif["sink"].to_list()
-                    ):
-                        if drug_name in drug_target_node:
-                            drug_target_node[drug_name].append(gene_node)
-                        else:
-                            drug_target_node[drug_name] = [gene_node]
+                    if gene_node not in network_nodes:
+                        for _, aggregate_row in aggregates.iterrows():
+                            if gene_node in aggregate_row["aggregates"]:
+                                gene_node = aggregate_row["node"]
+                                break
+                    if drug in drug_target_node:
+                        drug_target_node[drug].append(gene_node)
+                    else:
+                        drug_target_node[drug] = [gene_node]
     return drug_target_node
 
 
