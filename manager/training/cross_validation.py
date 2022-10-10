@@ -50,7 +50,7 @@ def cross_validation(
         cv_train_features = train_features.iloc[train_index]
         cv_test_features = train_features.iloc[test_index]
 
-        fit_runtime, test_runtime, acc, sorted_features, _, _, _ = which_rf(
+        (fit_runtime, test_runtime, acc, sorted_features, _, _, _,) = which_rf(
             rf_params=rf_params,
             train_features=cv_train_features,
             train_classes=cv_train_classes,

@@ -42,6 +42,14 @@ def read_results_file(input_file):
                     for model, scores in results.items():
                         if model not in drugs_dict[drug_name]:
                             drugs_dict[drug_name][model] = scores
+                        elif (
+                            model in drugs_dict[drug_name]
+                            and model == "parameters_grid"
+                        ):
+                            if not drugs_dict[drug_name][model] == scores:
+                                warnings.warn(
+                                    f"Parameters grid is repeated with different values for {drug_name}"
+                                )
                         else:
                             warnings.warn(
                                 f"the key '{model}' for {drug_name} is already present. "
@@ -77,6 +85,7 @@ def fetch_models(drugs_dict, drug, models, prefix, suffix, file):
             new_name = f"{prefix}{model}{suffix}"
         else:
             new_name = f"{model}{suffix}"
+
         if drug in drugs_dict:
             if new_name in drugs_dict[drug]:
                 warnings.warn(f"{new_name} already exists")
@@ -178,6 +187,7 @@ def organize_results(
     params_acc_per_drug,
     all_splits_acc,
     best_model_acc,
+    drug_num_features,
     sub_metric_list,
     params_acc_stat="mean",
 ):
@@ -241,6 +251,9 @@ def organize_results(
                 ],
                 f"train_score": ranked_scores[sub_metric][best_params_idx],
             }
+        drug_num_features[drug][rf_model] = results["best_params_performance"][
+            "num_features_overall"
+        ]
     # endregion
 
     # region arrange runtimes
@@ -255,21 +268,13 @@ def organize_results(
         best_est_runtime[rf_model] = results["best_params_performance"]["model_runtime"]
     # endregion
 
-    return (
-        best_est_fit_runtime,
-        best_est_test_runtime,
-        best_est_runtime,
-        gcv_runtime,
-        best_model_acc,
-        all_params_acc,
-        params_acc_per_drug,
-        all_splits_acc,
-    )
+    return best_est_fit_runtime, best_est_test_runtime, best_est_runtime, gcv_runtime
 
 
 def acc_runtime(drugs_dict, regression):
     best_model_acc = {}
     rf_runtime = {}
+    drug_num_features = {}
 
     if regression:
         sub_metric_list = subsets
@@ -288,6 +293,7 @@ def acc_runtime(drugs_dict, regression):
     for drug, rf_models in drugs_dict.items():
         best_model_acc[drug] = {}
         rf_runtime[drug] = {}
+        drug_num_features[drug] = {}
         for sub_metric in sub_metric_list:
             all_params_acc[sub_metric][drug] = {}
             params_acc_per_drug[sub_metric][drug] = {}
@@ -307,10 +313,6 @@ def acc_runtime(drugs_dict, regression):
                         best_est_test_runtime,
                         best_est_runtime,
                         gcv_runtime,
-                        best_model_acc,
-                        all_params_acc,
-                        params_acc_per_drug,
-                        all_splits_acc,
                     ) = organize_results(
                         drug,
                         rf_model,
@@ -320,6 +322,7 @@ def acc_runtime(drugs_dict, regression):
                         params_acc_per_drug,
                         all_splits_acc,
                         best_model_acc,
+                        drug_num_features,
                         sub_metric_list,
                     )
                     if rf_model in best_est_runtime:
@@ -345,6 +348,7 @@ def acc_runtime(drugs_dict, regression):
     return (
         grid_params,
         best_model_acc,
+        drug_num_features,
         all_params_acc,
         params_acc_per_drug,
         all_splits_acc,

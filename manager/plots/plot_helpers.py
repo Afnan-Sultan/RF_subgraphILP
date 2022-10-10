@@ -62,57 +62,35 @@ def plot_df_stats(
     output_dir,
     labels_color,
     transparency,
+    ascending=True,
     each_column=False,
 ):
     mean_df = grouped_df.mean()
-    if each_column:
-        columns = mean_df.columns
-        for col in columns:
-            sub_df = mean_df[col]
-            plot_with_bar_labels(
-                sub_df,
-                f"mean {title} - {col}",
-                bar_label_font,
-                xlabel_font,
-                output_dir,
-                bar_label_color=labels_color,
-                transparency=transparency,
-            )
-    else:
-        plot_with_bar_labels(
-            mean_df,
-            f"mean {title}",
-            bar_label_font,
-            xlabel_font,
-            output_dir,
-            bar_label_color=labels_color,
-            transparency=transparency,
-        )
-
     median_df = grouped_df.median()
-    if each_column:
-        columns = median_df.columns
-        for col in columns:
-            sub_df = median_df[col]
+    for info, df in {"mean": mean_df, "median": median_df}.items():
+        if each_column:
+            columns = df.columns
+            for col in columns:
+                sub_df = df[col].sort_values(ascending=ascending)
+                plot_with_bar_labels(
+                    sub_df,
+                    f"{col} - {info} {title}",
+                    bar_label_font,
+                    xlabel_font,
+                    output_dir,
+                    bar_label_color=labels_color,
+                    transparency=transparency,
+                )
+        else:
             plot_with_bar_labels(
-                sub_df,
-                f"median {title} - {col}",
+                df,
+                f"{info} {title}",
                 bar_label_font,
                 xlabel_font,
                 output_dir,
                 bar_label_color=labels_color,
                 transparency=transparency,
             )
-    else:
-        plot_with_bar_labels(
-            median_df,
-            f"median {title}",
-            bar_label_font,
-            xlabel_font,
-            output_dir,
-            bar_label_color=labels_color,
-            transparency=transparency,
-        )
 
 
 def get_ax_legends(fig):

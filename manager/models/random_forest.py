@@ -66,7 +66,12 @@ def get_feature_importance(rf, features_names, kwargs):
 
         # report average number of features per tree as the final number of features
         num_features = ceil(statistics.mean(num_trees_features))
-    return sorted_features, num_features_overall, num_features, num_trees_features
+    return (
+        sorted_features,
+        num_features_overall,
+        num_features,
+        num_trees_features,
+    )
 
 
 def do_rf(
@@ -284,9 +289,10 @@ def which_rf(
                 test_classes=test_classes,
                 kwargs=kwargs,
             )
-            sorted_features = (
-                num_features_overall
-            ) = num_features = num_trees_features = None
+            num_features_overall = num_features = num_trees_features = len(
+                to_rf["features"][0]
+            )
+            sorted_features = None
         else:
             (
                 fit_runtime,

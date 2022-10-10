@@ -147,23 +147,22 @@ def process_subgraphilp_output(nets_dir: str, features: List, kwargs: Kwargs):
         kwargs.data.processed_files.aggregates,
     )
 
-    entrez_symbols = kwargs.data.processed_files.entrez_symbols
-    entrez_in_ctd = set(entrez_symbols["GeneID"]).intersection(all_entrez)
-    present_entrez_symbols = entrez_symbols[
-        entrez_symbols["GeneID"].isin(entrez_in_ctd)
-    ]  # ['GeneSymbol'].to_list()
-
     if isinstance(features[0], str):
         all_entrez = [str(feature) for feature in all_entrez]
     assert type(features[0]) == type(list(all_entrez)[0])
     selected_features = sorted(list(set(features).intersection(all_entrez)))
 
-    # The gene matrix is given as gene symbols, while the subgraphilp maps only to entrez IDs.
+    # The gene matrix is given as gene symbols, while subgraphilp maps only to entrez IDs.
     # The gene matrix is filtered to include only genes with corresponding entrez ids available in
     # "CTD_genes_pathways.csv". Then, this filtered list is further filtered to the entrez present in "kegg_hsa.sif".
     # it's worth noticing that some kegg genes are not recognized by the ctd file, and some kegg genes recognized by ctd
     # are not present in the original matrix. Therefore, the expression is not fetched for these genes.
-    # The below dict stores these mappings and outputs it to a json file for further inspection.
+    # The below stores these mappings and outputs it to a json file for further inspection.
+    entrez_symbols = kwargs.data.processed_files.entrez_symbols
+    entrez_in_ctd = set(entrez_symbols["GeneID"]).intersection(all_entrez)
+    present_entrez_symbols = entrez_symbols[
+        entrez_symbols["GeneID"].isin(entrez_in_ctd)
+    ]
     selection_info = {
         "nodes_only": all_no_aggs,
         "nodes_with_aggregates": all_nodes,

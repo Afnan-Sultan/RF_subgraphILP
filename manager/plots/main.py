@@ -15,6 +15,7 @@ from process_results import acc_runtime, aggregate_result_files, best_est_info
 def plot_drugs_acc_subsets(
     regression,
     model_acc,
+    num_features,
     params_acc,
     params_acc_per_drug,
     params_df,
@@ -60,6 +61,8 @@ def plot_drugs_acc_subsets(
         if best_model_acc:
             subset_models_performance, subset_drug_preference = plot_acc(
                 model_acc,
+                num_features,
+                rf_runtime_["gcv_runtime"],
                 subset,
                 title,
                 plot_all=False,
@@ -97,9 +100,9 @@ if __name__ == "__main__":
 
     weighted = True
     simple_weight = True
-    regression_ = True
+    regression_ = False
     targeted_ = False
-    condition_ = "regression_weighted"
+    condition_ = "classification_weighted"
     n_features = 20
     hspace = 1.2
 
@@ -126,6 +129,7 @@ if __name__ == "__main__":
     (
         grid_params_,
         best_model_acc_,
+        drug_num_features_,
         all_params_acc_,
         params_acc_per_drug_,
         all_splits_acc_,
@@ -140,6 +144,7 @@ if __name__ == "__main__":
     models, drugs = plot_drugs_acc_subsets(
         regression_,
         best_model_acc_,
+        drug_num_features_,
         all_params_acc_,
         params_acc_per_drug_,
         grid_params_,
