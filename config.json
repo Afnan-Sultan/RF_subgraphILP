@@ -8,9 +8,9 @@
     "n_jobs": 5,
     "grid_search": false,
     "drugs_n_jobs": 1,
-    "bias_rf": true,
+    "bias_rf": false,
     "output_trees_info": false,
-    "sauron": true,
+    "sauron": false,
     "num_kfold": 5,
     "num_knodes": "10-25",
     "target_root_node": true,
@@ -22,7 +22,7 @@
     "num_random_samples": 25,
     "weight_samples": true,
     "simple_weight": true,
-    "regression": true,
+    "regression": false,
     "cell_lines_thresh":750
   },
   "model": {

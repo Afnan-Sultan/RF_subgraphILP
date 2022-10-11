@@ -20,23 +20,16 @@ import numpy as np
 import pandas as pd
 from joblib import Parallel
 from manager.config import Kwargs
-from manager.models.utils.biased_decision_tree import (
-    BiasedDecisionTreeClassifier,
-    BiasedDecisionTreeRegressor,
-)
+from manager.models.biased_decision_tree import (BiasedDecisionTreeClassifier,
+                                                 BiasedDecisionTreeRegressor)
 from manager.training.feature_selection import feature_selection
 from manager.utils import NewJsonEncoder
-
 # from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
 from sklearn.ensemble._base import _partition_estimators
-from sklearn.ensemble._forest import (
-    MAX_INT,
-    ForestClassifier,
-    ForestRegressor,
-    _accumulate_prediction,
-    _generate_sample_indices,
-    _get_n_samples_bootstrap,
-)
+from sklearn.ensemble._forest import (MAX_INT, ForestClassifier,
+                                      ForestRegressor, _accumulate_prediction,
+                                      _generate_sample_indices,
+                                      _get_n_samples_bootstrap)
 from sklearn.exceptions import DataConversionWarning
 from sklearn.tree._classes import DOUBLE, DTYPE
 from sklearn.tree._tree import issparse

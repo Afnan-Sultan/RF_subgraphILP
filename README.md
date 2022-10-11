@@ -9,16 +9,13 @@
 ## Project Structure
 * The `manager` folder contains the code for the project.
   * `manager/data` contains the code used for data processing (e.g., files pre-processing, data splitting, data filtering, ...etc.)
-  * `manger/models` contains the code to implement the different models (e.g., subgraphILP, random, ...etc.)
+  * `manger/models` contains the code to implement the random forest modifications
     * The main project ideas are implemented in `manager/models/utils/biased_random_forest.py`
   * `manger/training` contains the code for training (e.g., parameter grid search, cross validation, ...etc.)
   * `manager/plots` contains the code to generate analysis plots (e.g., performance, runtime, splits, ...etc.)
-  * `manager/scoring_metrics` contains the code used for evaluation
   * `manager/supplementary` contains the codes used to generate stats/figures outside the results folder
-  * `manager/train.py` is the script called for training with grid search cross validation
-  * `manager/train_final.py` is used to train a single model with no cross validation
+  * `manager/train.py` is the script called for training with and without grid search cross validation
   * `manager/config.py` includes the different parameters used for training
-  
 
 * The `data` folder contains all data used for the project (except the gene matrix  file for size constraints, which can be found at ??)
 

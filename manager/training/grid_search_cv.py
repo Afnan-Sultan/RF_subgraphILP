@@ -3,11 +3,63 @@ import time
 
 import pandas as pd
 from manager.config import Kwargs
-from manager.scoring_metrics.utils import rank_parameters, subsets_means
 from manager.training.cross_validation import cross_validation, get_rand_cv_results
 from manager.training.train_best_parameters import best_model
 
 logger = logging.getLogger(__name__)
+
+
+def subsets_means(
+    cv_results: dict, params_mean_perf: dict, subsets: list, regression: bool, idx: int
+):
+    """
+    calculate the results for the subsets of sensitive/resistant cell lines
+    """
+    for subset in subsets:
+        if subset in params_mean_perf:
+            if regression:
+                params_mean_perf[subset][idx] = cv_results["stats"][
+                    f"{subset}_mean_mse"
+                ]
+            else:
+                params_mean_perf[subset][idx] = cv_results["stats"][f"{subset}_mean"]
+        else:
+            if regression:
+                params_mean_perf[subset] = {
+                    idx: cv_results["stats"][f"{subset}_mean_mse"]
+                }
+            else:
+                params_mean_perf[subset] = {idx: cv_results["stats"][f"{subset}_mean"]}
+
+
+def rank_parameters(parameters_grid, gcv_results, params_mean_perf, kwargs):
+
+    # rank the mean performance for each parameter per subset (subsets = {overall, sensitive, resistant} if regression
+    # or subsets = {sensitivity, specificity, f1. ...etc.} if classification)
+    rank_params = {}
+    if kwargs.training.regression:
+        reverse = False  # the lower score, the better
+    else:
+        reverse = True  # the higher score, the better
+    for subset, mean_scores in params_mean_perf.items():
+        rank_params[subset] = {
+            param_idx: score
+            for param_idx, score in sorted(
+                mean_scores.items(), key=lambda item: item[1], reverse=reverse
+            )
+        }
+    gcv_results["rank_params_scores"] = rank_params
+
+    # retrieve the best parameters based on performance on the sensitive cell lines
+    # ("mse fo sensitive cell lines" if regression or "sensitivity" if classification)
+    best_params = [
+        parameters_grid[
+            list(rank.keys())[0]
+        ]  # best parameter's index is the first key in rank_params
+        for subset, rank in rank_params.items()
+        if subset == "sensitivity"
+    ][0]
+    return best_params
 
 
 def grid_search_cv(

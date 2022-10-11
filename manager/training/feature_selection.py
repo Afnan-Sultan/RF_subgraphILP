@@ -5,7 +5,7 @@ from typing import Union
 
 import pandas as pd
 from manager.config import Kwargs
-from manager.models.subgraphilp_model import subgraphilp_model
+from manager.training.subgraphilp import subgraphilp
 from manager.training.utils import get_num_features, random_samples
 
 logger = logging.getLogger(__name__)
@@ -29,9 +29,7 @@ def feature_selection(
     model = kwargs.model.current_model
 
     if model == "subgraphilp":
-        model_features = subgraphilp_model(
-            train_features, train_classes, kwargs, tree_idx
-        )
+        model_features = subgraphilp(train_features, train_classes, kwargs, tree_idx)
     else:
         if model in ["random", "corr_num"]:
             if kwargs.data.num_features_file is None:

@@ -2,7 +2,7 @@ import json
 import os.path
 import subprocess
 from datetime import datetime
-from typing import List
+from typing import List, Union
 
 import numpy as np
 import pandas as pd
@@ -12,6 +12,10 @@ from manager.utils import NewJsonEncoder
 
 
 def get_samples(gene_mat, classes, label):
+    """
+    select only samples belonging to a specified class.
+    This function ensures repetition in case of bootstrapped gene matrix
+    """
     label_cls = classes[classes.values == label].index.to_list()
     to_include = []
     for idx, cl in enumerate(gene_mat.columns.to_list()):
@@ -53,7 +57,7 @@ def differential_expression(
     return output_file
 
 
-def run_subgraphilp_executables(scores_file: str, drug_output_dir: str, kwargs: Kwargs):
+def run_executables(scores_file: str, drug_output_dir: str, kwargs: Kwargs):
     """
     run subgraphILP executables and save output to the disk. progress is logged in a separate file
     """
@@ -107,30 +111,7 @@ def run_subgraphilp_executables(scores_file: str, drug_output_dir: str, kwargs: 
     log_file.close()
 
 
-def combine_subgraphs(
-    subgraph_files: List[str], mapping: pd.DataFrame, aggregates: pd.DataFrame
-):
-    """
-    collect all the genes existing in all the reported subgraphs
-
-    @param subgraph_files: list, files paths
-    @param mapping: pd.DataFrame(..., columns=['node', 'GeneID'])
-    @param aggregates: pd.DataFrame(..., columns=['node', 'GeneID'])
-    @return: set of all mapped entrezIDs in the networks
-    """
-    all_entrez = set()
-    all_no_aggs = set()
-    all_nodes = set()
-    for file in subgraph_files:
-        subgraph = pd.read_csv(file, sep="\t", names=["source", "edge", "sink"])
-        no_aggs, nodes, entrez = map_nodes_to_entrez(subgraph, mapping, aggregates)
-        all_entrez.update(entrez)
-        all_no_aggs.update(no_aggs)
-        all_nodes.update(nodes)
-    return all_no_aggs, all_nodes, all_entrez
-
-
-def process_subgraphilp_output(nets_dir: str, features: List, kwargs: Kwargs):
+def process_output(nets_dir: str, features: List, kwargs: Kwargs):
     """
     process subgraphILP output files
     nets_dir: str of a path to the subgraphilp output files
@@ -141,15 +122,23 @@ def process_subgraphilp_output(nets_dir: str, features: List, kwargs: Kwargs):
         for file in os.listdir(nets_dir)
         if file.endswith(".sif")
     ]
-    all_no_aggs, all_nodes, all_entrez = combine_subgraphs(
-        subgraph_files,
-        kwargs.data.processed_files.node_entrez,
-        kwargs.data.processed_files.aggregates,
-    )
+
+    # combining subgraphs by collecting all the genes existing in all the reported subgraphs
+    all_entrez = all_no_aggs = all_nodes = set()
+    for file in subgraph_files:
+        subgraph = pd.read_csv(file, sep="\t", names=["source", "edge", "sink"])
+        no_aggs, nodes, entrez = map_nodes_to_entrez(
+            subgraph,
+            kwargs.data.processed_files.node_entrez,
+            kwargs.data.processed_files.aggregates,
+        )
+        all_entrez.update(entrez)
+        all_no_aggs.update(no_aggs)
+        all_nodes.update(nodes)
 
     if isinstance(features[0], str):
+        # features are forced to be strings after being passed to RF.
         all_entrez = [str(feature) for feature in all_entrez]
-    assert type(features[0]) == type(list(all_entrez)[0])
     selected_features = sorted(list(set(features).intersection(all_entrez)))
 
     # The gene matrix is given as gene symbols, while subgraphilp maps only to entrez IDs.
@@ -177,7 +166,7 @@ def process_subgraphilp_output(nets_dir: str, features: List, kwargs: Kwargs):
     return selected_features
 
 
-def subgraphilp_features(nets_dir: str, features: list, kwargs: Kwargs):
+def extract_features(nets_dir: str, features: list, kwargs: Kwargs):
     if kwargs.training.target_root_node:
         nodes_folders = [
             os.path.join(nets_dir, folder)
@@ -187,7 +176,7 @@ def subgraphilp_features(nets_dir: str, features: list, kwargs: Kwargs):
         if len(nodes_folders) > 0:
             selected_features = set()
             for node_folder in nodes_folders:
-                node_selection_info, node_features = process_subgraphilp_output(
+                node_selection_info, node_features = process_output(
                     node_folder, features, kwargs
                 )
 
@@ -196,6 +185,53 @@ def subgraphilp_features(nets_dir: str, features: list, kwargs: Kwargs):
         else:
             selected_features = None  # TODO: check if this case would ever happen?
     else:
-        selected_features = process_subgraphilp_output(nets_dir, features, kwargs)
+        selected_features = process_output(nets_dir, features, kwargs)
 
+    return selected_features
+
+
+def subgraphilp(
+    train_features: pd.DataFrame,
+    train_classes: pd.Series,
+    kwargs: Kwargs,
+    tree_idx: Union[int, None] = None,
+):
+    """
+    perform subgraphILP feature selection
+    train_features = pd.DataFrame(..., columns=[genes: List[Any], index=[cell_lines: List[int]])
+    train_classes = pd.Series(..., columns=["labels"], index=[cell_lines: List[int]])
+    k = the index of the current cross validation
+    tree_idx = the index of the current tree in the RF
+    return:
+        selected_features List of selected genes
+    """
+    if kwargs.training.cv_idx is not None:
+        drug_output_dir = os.path.join(
+            kwargs.intermediate_output,
+            kwargs.data.drug_name,
+            f"params_comb_{kwargs.training.gcv_idx}",
+            f"subgraphilp_cv_{kwargs.training.cv_idx}",
+        )
+    else:
+        drug_output_dir = os.path.join(
+            kwargs.intermediate_output,
+            kwargs.data.drug_name,
+            f"subgraphilp_best_model",
+        )
+    if tree_idx is not None:
+        drug_output_dir = os.path.join(drug_output_dir, f"tree_{tree_idx}")
+    os.makedirs(drug_output_dir, exist_ok=True)
+
+    de_file = differential_expression(
+        train_features,
+        train_classes,
+        drug_output_dir,
+        de_method=kwargs.training.de_method,
+    )
+
+    run_executables(de_file, drug_output_dir, kwargs)
+
+    selected_features = extract_features(
+        drug_output_dir, train_features.columns.to_list(), kwargs
+    )
     return selected_features

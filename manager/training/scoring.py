@@ -2,7 +2,6 @@ import json
 
 import numpy as np
 import pandas as pd
-from manager.scoring_metrics.utils import get_sensitivity
 from manager.utils import NewJsonEncoder
 from sklearn.metrics import (
     balanced_accuracy_score,
@@ -12,6 +11,23 @@ from sklearn.metrics import (
     mean_squared_error,
     recall_score,
 )
+
+
+def get_sensitivity(
+    test_classes: pd.Series, label: int, true_labels: pd.Series, prediction: np.array
+):
+    """
+    split the true and predicted results into sensitive/resistant
+    """
+
+    # convert to numerical indices for proper sub-setting of `predictions' as it doesn't contain cell lines IDs
+    temp = test_classes.reset_index(drop=True)
+
+    # select the samples of the specified class in both true and predicted labels
+    idxs = temp[temp.values == label].index
+    true = true_labels.iloc[idxs]
+    pred = prediction[idxs]
+    return true, pred
 
 
 def calc_accuracy(

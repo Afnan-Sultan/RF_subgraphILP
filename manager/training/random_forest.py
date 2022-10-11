@@ -6,12 +6,12 @@ from typing import List, Union
 
 import pandas as pd
 from manager.config import Kwargs
-from manager.models.utils.biased_random_forest import (
+from manager.models.biased_random_forest import (
     BiasedRandomForestClassifier,
     BiasedRandomForestRegressor,
 )
-from manager.scoring_metrics.scoring import calc_accuracy
 from manager.training.feature_selection import feature_selection
+from manager.training.scoring import calc_accuracy
 from manager.training.weighting_samples import (
     calculate_linear_weights,
     calculate_simple_weights,
@@ -110,7 +110,10 @@ def do_rf(
     else:
         # rf = RandomForestClassifier(**rf_params)
         rf = BiasedRandomForestClassifier(
-            kwargs, train_classes, train_scores, **rf_params
+            kwargs,
+            train_classes,
+            train_scores,
+            **rf_params,
         )
 
     # ensure the column names are strings to be recognized as feature names for random forest

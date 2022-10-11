@@ -2,7 +2,7 @@ import time
 
 import pandas as pd
 from manager.config import Kwargs
-from manager.models.random_forest import which_rf
+from manager.training.random_forest import which_rf
 
 
 def best_model(

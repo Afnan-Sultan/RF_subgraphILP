@@ -100,9 +100,9 @@ if __name__ == "__main__":
 
     weighted = True
     simple_weight = True
-    regression_ = False
+    regression_ = True
     targeted_ = False
-    condition_ = "classification_weighted"
+    condition_ = "regression_weighted"
     n_features = 20
     hspace = 1.2
 

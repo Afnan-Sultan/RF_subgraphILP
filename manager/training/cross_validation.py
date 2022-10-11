@@ -1,12 +1,45 @@
 import logging
+import statistics
 
 import pandas as pd
 from manager.config import Kwargs
-from manager.models.random_forest import which_rf
-from manager.scoring_metrics.utils import splits_stats
+from manager.training.random_forest import which_rf
 from sklearn.model_selection import StratifiedKFold
 
 logger = logging.getLogger(__name__)
+
+
+def splits_stats(model_results: dict, subsets: list, regression: bool):
+    """
+    calculate the statistics of the cross validation folds results
+    """
+    ACCs_stats = {}
+    for subset in subsets:
+        subset_ACCs = model_results[f"ACCs_{subset}"]
+        if regression:
+            ACCs_stats[f"{subset}_median_mse"] = statistics.median(subset_ACCs)
+            ACCs_stats[f"{subset}_mean_mse"] = statistics.mean(subset_ACCs)
+            ACCs_stats[f"{subset}_std_mse"] = statistics.stdev(subset_ACCs)
+        else:
+            scores_df = pd.DataFrame(subset_ACCs)
+            scores_median = scores_df.median().to_dict()
+            scores_means = scores_df.mean().to_dict()
+            scores_std = scores_df.std().to_dict()
+            for score_key, score_val in scores_means.items():
+                ACCs_stats[f"{subset}_median"] = scores_median[score_key]
+                ACCs_stats[f"{subset}_mean"] = score_val
+                ACCs_stats[f"{subset}_std"] = scores_std[score_key]
+
+    train_runtime = model_results["train_runtime"]
+    ACCs_stats["train_time_median"] = statistics.median(train_runtime)
+    ACCs_stats["train_time_mean"] = statistics.mean(train_runtime)
+    ACCs_stats["train_time_std"] = statistics.stdev(train_runtime)
+
+    test_runtime = model_results["test_runtime"]
+    ACCs_stats["test_time_median"] = statistics.median(test_runtime)
+    ACCs_stats["test_time_mean"] = statistics.mean(test_runtime)
+    ACCs_stats["test_time_std"] = statistics.stdev(test_runtime)
+    return ACCs_stats
 
 
 def cross_validation(
