@@ -1,4 +1,5 @@
 import logging
+import os
 import random
 from math import ceil
 from typing import Union
@@ -79,6 +80,13 @@ def feature_selection(
                 model_features = rand_features
         else:  # performing the usual random forest
             model_features = train_features.columns.to_list()
+    if len(model_features) == 0:
+        logger.info(
+            f"No features found for {kwargs.data.drug_name} using {model}. Dummy results are generated. You can find "
+            f"the list of drugs with dummy results at {os.path.join(kwargs.results_dir, 'dummy_results.csv')}"
+        )
+        kwargs.data.not_to_analyse.add(f"{kwargs.data.drug_name},{model}\n")
+        model_features = random.sample(train_features.columns.to_list(), 10)
 
     # select the new train and test features
     if model == "random" and not kwargs.training.bias_rf:

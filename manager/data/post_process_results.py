@@ -93,6 +93,11 @@ def aggregate_result_files(results_path, condition, targeted=False):
         for file in os.listdir(folder)
         if os.path.isfile(os.path.join(folder, file)) and file.endswith("jsonl")
     ]
+    targeted_folder = [folder for folder in results_folders if "targeted" in folder][0]
+    to_check = os.path.join(targeted_folder, "dummy_results.csv")
+    not_to_include = None
+    if os.path.isfile(to_check):
+        not_to_include = pd.read_csv(to_check, header=None).iloc[:, 0].to_list()
 
     drugs_dict = {}
     drugs_with_targets = None
@@ -128,8 +133,12 @@ def aggregate_result_files(results_path, condition, targeted=False):
             elif targeted and drug in drugs_with_targets:
                 # update drugs_dict with only drugs that have targets
                 fetch_models(drugs_dict, drug, models, prefix, suffix, file)
-            if len(drugs_dict) == 0:
-                warnings.warn("no results found")
+    if len(drugs_dict) == 0:
+        warnings.warn("no results found")
+    else:
+        if not_to_include is not None:
+            for drug in not_to_include:
+                drugs_dict.pop(drug)
     return drugs_dict
 
 

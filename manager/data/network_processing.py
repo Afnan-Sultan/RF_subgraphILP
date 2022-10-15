@@ -20,11 +20,11 @@ def fetch_target_nodes(drugs_targets, node_entrez, aggregates, entrez_symbols, s
                     gene_node_df = node_entrez[node_entrez["GeneID"] == gene_id]
                     gene_node = gene_node_df["node"].to_list()[0]
                     if gene_node not in network_nodes:
-                        continue
-                    #     for _, aggregate_row in aggregates.iterrows():
-                    #         if gene_node in aggregate_row["aggregates"]:
-                    #             gene_node = aggregate_row["node"]
-                    #             break
+                        # continue
+                        for _, aggregate_row in aggregates.iterrows():
+                            if gene_node in aggregate_row["aggregates"]:
+                                gene_node = aggregate_row["node"]
+                                break
                     if drug in drug_target_node:
                         drug_target_node[drug].append(gene_node)
                     else:

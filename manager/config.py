@@ -110,10 +110,22 @@ class ModelConfig(BaseModel):
 
     @cached_property
     def model_names(self) -> List[str]:
+        implemented_approaches = [
+            "subgraphilp",
+            "corr_thresh",
+            "corr_num",
+            "random",
+            "original",
+        ]
         if isinstance(self.models, str):
-            return [self.models]
-        else:
-            return self.models
+            self.models = [self.models]
+
+        for model in self.models:
+            assert (
+                model in implemented_approaches
+            ), f"{model} not implemented yet. Available implementations are {implemented_approaches}"
+
+        return self.models
 
 
 class DataConfing(BaseModel):
@@ -133,6 +145,7 @@ class DataConfing(BaseModel):
     drug_subset: Optional[Union[int, List[str]]]
     include_subset: Optional[bool]
     acc_subset: Optional[list]
+    not_to_analyse: Optional[set] = set()
 
     # --- GDSC files ---
     ic50_gdsc_file: str  # path to tsv file

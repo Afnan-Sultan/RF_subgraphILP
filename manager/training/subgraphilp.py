@@ -164,7 +164,6 @@ def process_output(nets_dir: str, features: List, kwargs: Kwargs):
     output_selection = os.path.join(nets_dir, "feature_selection_info.json")
     with open(output_selection, "w") as selection:
         selection.write(json.dumps(selection_info, indent=2, cls=NewJsonEncoder))
-
     return selected_features
 
 

@@ -3,6 +3,7 @@ from math import ceil
 
 import matplotlib
 import matplotlib.pyplot as plt
+import pandas as pd
 from manager.data.post_process_results import postprocessing
 
 matplotlib.use("TkAgg")
@@ -13,6 +14,7 @@ def box_plot(
     title,
     subtitles,
     output_dir,
+    regression,
     figsize=(10, 10),
     showfliers=False,
     fontsize=12,
@@ -23,11 +25,16 @@ def box_plot(
     plt.subplots_adjust(hspace=hspace)
     plt.suptitle(title)
     for idx, df in enumerate(dfs):
+        df = df.round(2)
+        ascending = True if regression else False
+        to_sort = pd.DataFrame(
+            {"median": df.median(), "q3": df.quantile(0.75)}, index=df.columns
+        ).sort_values(by=["median", "q3"], ascending=[ascending, ascending])
+        df = df.loc[:, to_sort.index]
         ax = fig.add_subplot(ceil(len(dfs) / 2), 2, idx + 1)
-        # fig, ax = plt.subplots(figsize=figsize)
         ax.boxplot(df.values, showfliers=showfliers)
         ax.set_xticklabels(df.columns, fontsize=fontsize)
-        ax.set_title = subtitles[idx]
+        ax.set_title(subtitles[idx])
         plt.xticks(rotation=rotation, ha=ha)
     plt.savefig(os.path.join(output_dir, f"{title.replace(' ', '_')}_boxplot.png"))
 
@@ -39,7 +46,7 @@ if __name__ == "__main__":
     regression = False
     weighted = True
     simple_weight = True
-    targeted = False
+    targeted = True
     n_features = 20
     hspace = 1.2
 
@@ -99,16 +106,18 @@ if __name__ == "__main__":
         regression,
         list(metrics.keys()),
     )
+
     for metric in metrics:
         scores = [
             final_models_acc[metric]["test_score"],
             final_models_acc[metric]["train_score"],
         ]
-        subtitles_ = ["test scores", ["train_scores"]]
+        subtitles_ = ["test scores", "train_scores"]
         box_plot(
             dfs=scores,
             title=f"{metrics[metric]}",
             subtitles=subtitles_,
             output_dir=output_dir_,
+            regression=regression,
             figsize=(15, 10),
         )

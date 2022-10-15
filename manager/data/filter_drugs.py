@@ -29,14 +29,15 @@ def filter_drugs(kwargs: Kwargs):
     selected_drugs = {}
     if kwargs.from_disk:
         # TODO: can be removed when done. used only for repetition sake
+        matrices_dir = kwargs.matrices_output_dir
         if kwargs.training.target_root_node:
             to_upload = [
                 drug
-                for drug in os.listdir(kwargs.matrices_output_dir)
+                for drug in os.listdir(matrices_dir)
                 if drug in kwargs.data.processed_files.drugs_targets.keys()
             ]
         else:
-            to_upload = os.listdir(kwargs.matrices_output_dir)
+            to_upload = os.listdir(matrices_dir)
 
         drug_subset = kwargs.data.drug_subset
         if drug_subset is not None:
@@ -47,16 +48,15 @@ def filter_drugs(kwargs: Kwargs):
 
         for drug_name in tqdm(
             to_upload,
-            desc="Fetching selected drugs from disk",
         ):
             selected_drugs[drug_name] = {
                 "gene_mat": pd.read_csv(
-                    os.path.join(kwargs.matrices_output_dir, drug_name, "gene_mat.txt"),
+                    os.path.join(matrices_dir, drug_name, "gene_mat.txt"),
                     sep="\t",
                     index_col=0,
                 ),
                 "meta_data": pd.read_csv(
-                    os.path.join(kwargs.matrices_output_dir, drug_name, "meta.txt"),
+                    os.path.join(matrices_dir, drug_name, "meta.txt"),
                     sep="\t",
                     index_col=0,
                 ),

@@ -1,5 +1,6 @@
 import json
 import logging
+import os
 
 from manager.config import Kwargs
 from manager.data.data_split import split_data
@@ -67,6 +68,15 @@ def train_models(drug_name: str, drug_info: dict, kwargs: Kwargs):
                     test_classes=splits["test"]["classes"],
                     kwargs=kwargs,
                 )
+
+    not_to_analyse = kwargs.data.not_to_analyse
+    if len(not_to_analyse) > 0:
+        if len(not_to_analyse) > 0:
+            not_to_analyse = "\n".join(not_to_analyse)
+        else:
+            not_to_analyse = str(not_to_analyse)
+        with open(os.path.join(kwargs.results_dir, "dummy_results.csv"), "a") as dummy:
+            dummy.write(not_to_analyse)
 
     with open(kwargs.results_doc, "a") as convert_file:
         convert_file.write(
