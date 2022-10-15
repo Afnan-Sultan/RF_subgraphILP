@@ -2,8 +2,6 @@
   "output_dir": "results_temp",
   "training": {
     "random_state": 42,
-    "max_features": ["log2"],
-    "min_samples_leaf": [22],
     "n_estimators": [10],
     "n_jobs": 5,
     "grid_search": false,

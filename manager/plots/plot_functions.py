@@ -1,9 +1,10 @@
 import os
-from math import ceil, inf
+from math import ceil
 
 import matplotlib
 import matplotlib.pyplot as plt
 import pandas as pd
+from manager.data.post_process_results import serialize_dict
 from manager.plots.plot_helpers import (
     get_ax_legends,
     label_plot,
@@ -12,7 +13,6 @@ from manager.plots.plot_helpers import (
     plot_with_bar_labels,
 )
 from manager.plots.plot_leveled import plot_levels
-from manager.plots.process_results import serialize_dict
 
 matplotlib.use("TkAgg")
 
@@ -78,8 +78,6 @@ def plot_acc(
             inplace=True,
         )
 
-    models_performance = {}
-    drugs_preference = {}
     # prepare a plot for each drug, only when a subset is specified for time's sake
     if subset is not None:
         new_df = df.stack([2, 0, 1]).reset_index(0, drop=True)
@@ -106,56 +104,8 @@ def plot_acc(
                     labels_color,
                     transparency,
                 )
-
-                if regression:
-                    val = drug_df["test_score"].min()
-                else:
-                    val = drug_df["test_score"].max()
-                best_models = drug_df[drug_df["test_score"] == val].index.to_list()
-                min_features = inf
-                min_runtime = inf
-                best_model = None
-                for model in best_models:
-                    model_features = num_features_dict[drug][model]
-                    model_runtime = runtime.loc[model].loc[drug]
-                    if model_features is None and "random" in model:
-                        to_replace = "_".join(["corr_num", *model.split("_")[1:]])
-                        model_features = (
-                            num_features_dict[drug][to_replace]
-                            if to_replace in num_features_dict[drug]
-                            else inf
-                        )
-                    if model_features < min_features or (
-                        model_features == min_features and model_runtime < min_runtime
-                    ):
-                        min_features = model_features
-                        min_runtime = model_runtime
-                        best_model = model
-                if best_model in models_performance:
-                    models_performance[best_model].append(drug)
-                else:
-                    models_performance[best_model] = [drug]
     else:
         new_df = df.stack([0, 1, 2]).reset_index(0, drop=True)
-
-    # plot number of drugs the reported best results for each model
-    ax = (
-        pd.DataFrame(
-            [len(val) for val in models_performance.values()],
-            index=list(models_performance.keys()),
-            columns=["drugs_count"],
-        )
-        .sort_values(by="drugs_count", ascending=False)
-        .plot(kind="bar", figsize=figsize)
-    )
-    label_plot(
-        ax,
-        f"models performance - {subset}",
-        output_dir,
-        bar_label_font,
-        labels_color,
-        transparency,
-    )
 
     if plot_all:
         plot_levels(new_df, f"{title}_drugs", output_dir, add_vals=False, lypos=-0.3)
@@ -205,7 +155,6 @@ def plot_acc(
             ascending=True if regression else False,
             each_column=True,
         )
-    return models_performance, drugs_preference
 
 
 def plot_param_selection(

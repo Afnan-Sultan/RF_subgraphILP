@@ -34,6 +34,8 @@ def differential_expression(
     classes = pd.Series(..., columns=["labels"], index=[cell_lines: List[int]])
     return: str to output file path
     """
+
+    # TODO: carry sample_weight for differential expression
     gene_mat = gene_mat.transpose()
 
     ref = get_samples(gene_mat, classes, 0)
@@ -176,9 +178,7 @@ def extract_features(nets_dir: str, features: list, kwargs: Kwargs):
         if len(nodes_folders) > 0:
             selected_features = set()
             for node_folder in nodes_folders:
-                node_selection_info, node_features = process_output(
-                    node_folder, features, kwargs
-                )
+                node_features = process_output(node_folder, features, kwargs)
 
                 selected_features.update(node_features)
             selected_features = list(selected_features)

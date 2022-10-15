@@ -1,6 +1,6 @@
 import os
 from functools import cached_property
-from typing import Any, List, Optional, Union
+from typing import List, Optional, Union
 
 from pydantic import BaseModel
 from sklearn.model_selection import ParameterGrid
@@ -23,10 +23,10 @@ class TrainingConfig(BaseModel):
     target_root_node: bool
 
     # RF parameters
-    max_features: Optional[Union[str, List[Any]]]  # TODO: change
-    min_samples_leaf: Union[int, List[int]] = 20
+    max_features: Optional[Union[str, float, List[Union[str, float]]]]
+    min_samples_leaf: Optional[Union[int, List[int]]]
     n_estimators: Optional[Union[int, List[int]]] = 500
-    n_jobs: Optional[int] = 3
+    n_jobs: Optional[int] = 1
     random_state: Optional[int] = 42
     bias_rf: bool
     bias_pct: Optional[float] = 1
@@ -37,13 +37,15 @@ class TrainingConfig(BaseModel):
     def parameters_grid(self) -> dict:
         if not self.max_features:
             if self.regression:
-                self.max_features = ["sqrt"]
+                self.max_features = [0.3]
             else:
-                self.max_features = [None]  # [0.3]  # TODO: change
-        elif isinstance(self.max_features, str):
+                self.max_features = ["sqrt"]
+        elif isinstance(self.max_features, str) or isinstance(self.max_features, float):
             self.max_features = [self.max_features]
 
-        if isinstance(self.min_samples_leaf, int):
+        if not self.min_samples_leaf:
+            self.min_samples_leaf = [15]
+        elif isinstance(self.min_samples_leaf, int):
             self.min_samples_leaf = [self.min_samples_leaf]
         elif len(self.min_samples_leaf) == 3:
             range_ = self.min_samples_leaf
@@ -57,7 +59,7 @@ class TrainingConfig(BaseModel):
 
         rf_hyperparameters = {
             "max_features": self.max_features,
-            "min_samples_leaf": self.min_samples_leaf,  # restrict depth
+            "min_samples_leaf": self.min_samples_leaf,
             "n_estimators": self.n_estimators,
             "random_state": [self.random_state],
             "n_jobs": [self.n_jobs],
@@ -129,6 +131,7 @@ class DataConfing(BaseModel):
     output_num_feature: Optional[bool] = True
     num_features_file: Optional[str]
     drug_subset: Optional[Union[int, List[str]]]
+    include_subset: Optional[bool]
     acc_subset: Optional[list]
 
     # --- GDSC files ---
@@ -176,9 +179,12 @@ class Kwargs(BaseModel):
     @cached_property
     def weight(self):
         if self.training.weight_samples:
-            return "_weighted"
+            if self.training.simple_weight:
+                return "_weighted"
+            else:
+                return "_weighted_linear"
         else:
-            return "_notweighted"
+            return "_not_weighted"
 
     @cached_property
     def bias(self):

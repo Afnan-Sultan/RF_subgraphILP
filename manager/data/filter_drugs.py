@@ -27,11 +27,26 @@ def filter_drugs(kwargs: Kwargs):
     Select gene expression matrix corresponding to the cell lines associated with drugs passing the cell lines threshold
     """
     selected_drugs = {}
-    if (
-        kwargs.from_disk
-    ):  # TODO: can be removed when done. used only for repetition sake
+    if kwargs.from_disk:
+        # TODO: can be removed when done. used only for repetition sake
+        if kwargs.training.target_root_node:
+            to_upload = [
+                drug
+                for drug in os.listdir(kwargs.matrices_output_dir)
+                if drug in kwargs.data.processed_files.drugs_targets.keys()
+            ]
+        else:
+            to_upload = os.listdir(kwargs.matrices_output_dir)
+
+        drug_subset = kwargs.data.drug_subset
+        if drug_subset is not None:
+            if kwargs.data.include_subset:
+                to_upload = [drug for drug in to_upload if drug in drug_subset]
+            else:
+                to_upload = [drug for drug in to_upload if drug not in drug_subset]
+
         for drug_name in tqdm(
-            os.listdir(kwargs.matrices_output_dir),
+            to_upload,
             desc="Fetching selected drugs from disk",
         ):
             selected_drugs[drug_name] = {

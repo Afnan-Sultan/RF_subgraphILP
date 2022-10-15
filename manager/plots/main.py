@@ -1,33 +1,66 @@
 import os
+from math import ceil
 
-from plot_functions import (
-    plot_acc,
-    plot_features_importance,
-    plot_param_selection,
-    plot_param_train_error,
-    plot_params_acc,
-    plot_runtime,
-    plot_splits,
-)
-from process_results import acc_runtime, aggregate_result_files, best_est_info
+import matplotlib
+import matplotlib.pyplot as plt
+from manager.data.post_process_results import postprocessing
+
+matplotlib.use("TkAgg")
 
 
-def plot_drugs_acc_subsets(
-    regression,
-    model_acc,
-    num_features,
-    params_acc,
-    params_acc_per_drug,
-    params_df,
-    splits_acc,
-    output_path,
-    param_train_error=True,
-    best_model_acc=True,
-    parameters_acc=True,
-    splits=True,
-    hspace=0.8,
+def box_plot(
+    dfs,
+    title,
+    subtitles,
+    output_dir,
+    figsize=(10, 10),
+    showfliers=False,
+    fontsize=12,
+    rotation=30,
+    ha="right",
 ):
-    ml_subsets = {
+    fig = plt.figure(figsize=figsize)
+    plt.subplots_adjust(hspace=hspace)
+    plt.suptitle(title)
+    for idx, df in enumerate(dfs):
+        ax = fig.add_subplot(ceil(len(dfs) / 2), 2, idx + 1)
+        # fig, ax = plt.subplots(figsize=figsize)
+        ax.boxplot(df.values, showfliers=showfliers)
+        ax.set_xticklabels(df.columns, fontsize=fontsize)
+        ax.set_title = subtitles[idx]
+        plt.xticks(rotation=rotation, ha=ha)
+    plt.savefig(os.path.join(output_dir, f"{title.replace(' ', '_')}_boxplot.png"))
+
+
+if __name__ == "__main__":
+    results_path = "../../results_larger"
+    output_path = "../../figures_v3"
+
+    regression = False
+    weighted = True
+    simple_weight = True
+    targeted = False
+    n_features = 20
+    hspace = 1.2
+
+    if weighted and simple_weight:
+        dir0 = "weighted"
+    elif weighted and not simple_weight:
+        dir0 = "weighted_linear"
+    else:
+        dir0 = "not_weighted"
+    if regression:
+        dir1 = "regression"
+    else:
+        dir1 = "classification"
+    if targeted:
+        dir2 = "targeted"
+    else:
+        dir2 = "not_targeted"
+    output_dir_ = os.path.join(output_path, dir0, dir1, dir2)
+    os.makedirs(output_dir_, exist_ok=True)
+
+    ml_metrics = {
         "regression": {
             "overall": "MSE scores",
             "sensitivity": "MSE scores - sensitive",
@@ -42,134 +75,40 @@ def plot_drugs_acc_subsets(
         },
     }
     if regression:
-        subsets = ml_subsets["regression"]
+        metrics = ml_metrics["regression"]
     else:
-        subsets = ml_subsets["classification"]
-    if param_train_error:
-        plot_param_train_error(
-            params_acc,
-            subsets,
-            output_dir=os.path.join(
-                output_path,
-                "parameters",
-            ),
-        )
+        metrics = ml_metrics["classification"]
 
-    models_performance = {}
-    drug_preference = {}
-    for subset, title in subsets.items():
-        if best_model_acc:
-            subset_models_performance, subset_drug_preference = plot_acc(
-                model_acc,
-                num_features,
-                rf_runtime_["gcv_runtime"],
-                subset,
-                title,
-                plot_all=False,
-                output_dir=os.path.join(output_path, "best_model_performance"),
-            )
-            models_performance[subset] = subset_models_performance
-            drug_preference[subset] = subset_drug_preference
-        if parameters_acc:
-            plot_params_acc(
-                params_acc[subset],
-                params_acc_per_drug[subset],
-                params_df,
-                title,
-                output_dir=os.path.join(
-                    output_path,
-                    "parameters",
-                ),
-                hspace=hspace,
-            )
-        if splits:
-            plot_splits(
-                splits_acc[subset],
-                title,
-                subset,
-                output_dir=os.path.join(
-                    output_path,
-                    "splits",
-                ),
-            )
-    return models_performance, drug_preference
-
-
-if __name__ == "__main__":
-    results_path_ = "../../results_larger"
-
-    weighted = True
-    simple_weight = True
-    regression_ = True
-    targeted_ = False
-    condition_ = "regression_weighted"
-    n_features = 20
-    hspace = 1.2
-
-    if weighted and simple_weight:
-        dir0 = "weighted_simple"
-    elif weighted and not simple_weight:
-        dir0 = "weighted_linear"
-    else:
-        dir0 = "not_weighted"
-    if regression_:
-        dir1 = "regression"
-    else:
-        dir1 = "classification"
-    if targeted_:
-        dir2 = "targeted"
-    else:
-        dir2 = "not_targeted"
-    output_dir = os.path.join("../../figures_v3", dir0, dir1, dir2)
-
-    # load results
-    drugs_dict_ = aggregate_result_files(results_path_, condition_, targeted_)
-
-    # extract runtime and accuracies information
+    # results postprocessing
+    condition = f"{dir1}_{dir0}"
     (
-        grid_params_,
-        best_model_acc_,
-        drug_num_features_,
-        all_params_acc_,
-        params_acc_per_drug_,
-        all_splits_acc_,
-        rf_runtime_,
-    ) = acc_runtime(drugs_dict_, regression=regression_)
-    parameters_grid = True if len(grid_params_) > 1 else False
-
-    # plot runtime and accuracies of each subset
-    plot_runtime(
-        rf_runtime_, "runtime", output_dir=os.path.join(output_dir, "runtimes")
+        parameters_grid,
+        final_models_acc,
+        final_models_parameters,
+        final_models_best_features,
+        final_models_num_features,
+        metric_best_models,
+        parameters_grid_acc,
+        parameters_grid_acc_per_drug,
+        cross_validation_splits_acc,
+        runtimes,
+    ) = postprocessing(
+        results_path,
+        condition,
+        targeted,
+        regression,
+        list(metrics.keys()),
     )
-    models, drugs = plot_drugs_acc_subsets(
-        regression_,
-        best_model_acc_,
-        drug_num_features_,
-        all_params_acc_,
-        params_acc_per_drug_,
-        grid_params_,
-        all_splits_acc_,
-        output_dir,
-        param_train_error=True if parameters_grid else False,
-        best_model_acc=True,
-        parameters_acc=True if parameters_grid else False,
-        splits=False,
-        hspace=hspace,
-    )
-
-    # extract best model meta information
-    best_models_info = best_est_info(drugs_dict_)
-
-    # plot parameter selection of the best models
-    if parameters_grid:
-        plot_param_selection(
-            best_models_info["best_params"],
-            output_dir=os.path.join(output_dir, "parameters"),
+    for metric in metrics:
+        scores = [
+            final_models_acc[metric]["test_score"],
+            final_models_acc[metric]["train_score"],
+        ]
+        subtitles_ = ["test scores", ["train_scores"]]
+        box_plot(
+            dfs=scores,
+            title=f"{metrics[metric]}",
+            subtitles=subtitles_,
+            output_dir=output_dir_,
+            figsize=(15, 10),
         )
-
-    # plot the feature importance of the first n feature for each model
-    plot_features_importance(
-        best_models_info["features_importance"],
-        n_features,
-        output_dir=os.path.join(output_dir, "feature_importance"),
-    )

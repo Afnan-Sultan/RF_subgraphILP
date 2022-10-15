@@ -52,14 +52,21 @@ def train(
 
     if kwargs.data.drug_subset is not None:
         if isinstance(kwargs.data.drug_subset, list):
-            selected_drugs_info = {
-                k: selected_drugs_info[k] for k in kwargs.data.drug_subset
-            }  # TODO: remove
+            if not kwargs.data.include_subset:
+                selected_drugs_info = {
+                    k: selected_drugs_info[k]
+                    for k in selected_drugs_info.keys()
+                    if k not in kwargs.data.drug_subset
+                }
+            else:
+                selected_drugs_info = {
+                    k: selected_drugs_info[k] for k in kwargs.data.drug_subset
+                }
         else:
             selected_drugs_info = {
                 k: selected_drugs_info[k]
                 for k in list(selected_drugs_info.keys())[: kwargs.data.drug_subset]
-            }  # TODO: remove
+            }
 
     if kwargs.training.target_root_node:
         drugs_info = {}
@@ -82,5 +89,5 @@ def train(
 
 
 if __name__ == "__main__":
-    train("config.json")
+    # train("config.json")
     app()
