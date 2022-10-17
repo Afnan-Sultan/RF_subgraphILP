@@ -75,7 +75,7 @@ def train_models(drug_name: str, drug_info: dict, kwargs: Kwargs):
             not_to_analyse = "\n".join(not_to_analyse)
         else:
             not_to_analyse = str(not_to_analyse)
-        with open(os.path.join(kwargs.results_dir, "dummy_results.csv"), "a") as dummy:
+        with open(os.path.join(kwargs.results_dir, "dummy_result.csv"), "a") as dummy:
             dummy.write(not_to_analyse)
 
     with open(kwargs.results_doc, "a") as convert_file:

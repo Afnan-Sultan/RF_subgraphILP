@@ -83,7 +83,7 @@ def feature_selection(
     if len(model_features) == 0:
         logger.info(
             f"No features found for {kwargs.data.drug_name} using {model}. Dummy results are generated. You can find "
-            f"the list of drugs with dummy results at {os.path.join(kwargs.results_dir, 'dummy_results.csv')}"
+            f"the list of drugs with dummy results at {os.path.join(kwargs.results_dir, 'dummy_result.csv')}"
         )
         kwargs.data.not_to_analyse.add(f"{kwargs.data.drug_name},{model}\n")
         model_features = random.sample(train_features.columns.to_list(), 10)

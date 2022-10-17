@@ -93,16 +93,24 @@ def aggregate_result_files(results_path, condition, targeted=False):
         for file in os.listdir(folder)
         if os.path.isfile(os.path.join(folder, file)) and file.endswith("jsonl")
     ]
-    targeted_folder = [folder for folder in results_folders if "targeted" in folder][0]
-    to_check = os.path.join(targeted_folder, "dummy_results.csv")
+
     not_to_include = None
-    if os.path.isfile(to_check):
-        not_to_include = pd.read_csv(to_check, header=None).iloc[:, 0].to_list()
+    if targeted:
+        targeted_folder = [
+            folder for folder in results_folders if "targeted" in folder
+        ][0]
+        to_check = os.path.join(targeted_folder, "dummy_result.csv")
+        if os.path.isfile(to_check):
+            not_to_include = pd.read_csv(to_check, header=None).iloc[:, 0].to_list()
 
     drugs_dict = {}
     drugs_with_targets = None
     if targeted:
-        # extract the drugs with targeted from the first file (arbitrary choice, should be the same drugs set for all)
+        # extract the drugs with targets from the first file (arbitrary choice, should be the same drugs set for all)
+        target_file = [file for file in results_files if "targeted" in file]
+        for tf in target_file:  # TODO: remove
+            td = read_results_file(tf)
+            print(tf, len(td.keys()))
         target_file = [file for file in results_files if "targeted" in file][0]
         target_dd = read_results_file(target_file)
         drugs_with_targets = list(target_dd.keys())
@@ -126,6 +134,7 @@ def aggregate_result_files(results_path, condition, targeted=False):
             prefix = ""
 
         result_dict = read_results_file(file)
+        print(file, len(result_dict.keys()))  # TODO: remove
         for drug, models in result_dict.items():
             if not targeted:
                 # update drugs_dict with all drugs
@@ -142,26 +151,54 @@ def aggregate_result_files(results_path, condition, targeted=False):
     return drugs_dict
 
 
-def best_model_per_drug(test_scores, final_models_num_features, runtimes, regression):
+def best_model_per_drug(
+    test_scores, final_models_num_features, runtimes, regression, thresh
+):
     """
     Determine the best performing model for each drug according to each metric (e.g., sensitivity/specificity).
-    The scores are rounded to second decimal to avoid wining over miniscule difference.
+
+    The scores are rounded to second decimal to avoid wining over miniscule difference. Also, a model is considered
+    amongst best models only if the difference in performance is higher than a threshold compared with the second model.
+    If this difference didn't exist, the second-best models are considered best models as well and the comparison keeps
+    moving on until the difference is realized.
+
     A tie is broken to favor the simpler model represented by lower number of features, then by lower runtime.
     In case the random model was one of the best models, all other models are ignored with the assumption that a random
-    is the simplest model possible.
+    model is the simplest model possible.
     """
     models_performance = {}
     for drug in test_scores.index.to_list():
         drug_df = test_scores.loc[drug].round(2)
+        temp = drug_df.copy(deep=True)
+        best_by = None
         if regression:
-            best_score = drug_df.min()
-            second_best = drug_df[drug_df.values != best_score].min()
-            best_by = second_best - best_score
+            best_scores = set()
+            for ctr in range(len(drug_df.unique())):
+                best_score = temp.min()
+
+                second_best = temp[temp.values != best_score].min()
+                best_by = second_best - best_score
+                if best_by >= thresh:
+                    best_scores.add(best_score)
+                    break
+                else:
+                    best_scores.update([best_score, second_best])
+                    temp = temp[temp.values != second_best]
         else:
-            best_score = drug_df.max()
-            second_best = drug_df[drug_df.values != best_score].max()
-            best_by = best_score - second_best
-        best_models = drug_df[drug_df.values == best_score].index.to_list()
+            best_scores = set()
+            for ctr in range(len(drug_df.unique())):
+                best_score = drug_df.max()
+
+                second_best = drug_df[drug_df.values != best_score].max()
+                best_by = best_score - second_best
+                if best_by >= thresh:
+                    best_scores.add(best_score)
+                    break
+                else:
+                    best_scores.update([best_score, second_best])
+                    temp = temp[temp.values != second_best]
+
+        best_models = drug_df[drug_df.isin(best_scores)].index.to_list()
         if any(["random" in model for model in best_models]):
             best_model = [model for model in best_models if "random" in model][0]
             if best_model in models_performance:
@@ -197,7 +234,13 @@ def best_model_per_drug(test_scores, final_models_num_features, runtimes, regres
 
 
 def postprocessing(
-    results_path, condition, targeted, regression, metrics, params_acc_stat="mean"
+    results_path,
+    condition,
+    targeted,
+    regression,
+    metrics,
+    thresh,
+    params_acc_stat="mean",
 ):
     drugs_dict = aggregate_result_files(results_path, condition, targeted)
 
@@ -365,6 +408,7 @@ def postprocessing(
             final_models_num_features,
             runtimes["gcv_runtime"],
             regression,
+            thresh,
         )
 
     if len(parameters_grid) < 2:
