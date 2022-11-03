@@ -10,7 +10,7 @@ import pandas as pd
 
 def serialize_dict(multi_level_dict, levels_to_index):
     """
-    convert multi-key dictionary to multilevel dataframe
+    convert multi-key dictionary (json) to multilevel dataframe
     """
     df = pd.json_normalize(multi_level_dict)
     df.columns = df.columns.str.split(".").map(tuple)
@@ -51,22 +51,27 @@ def read_results_file(input_file):
     return drugs_dict
 
 
-def fetch_models(drugs_dict, drug, models, prefix, suffix, file):
+def fetch_models(
+    drugs_dict, drug, models, prefix, suffix, file, models_to_compare=None
+):
     """
     rename models with proper prefix and suffix according to the file name (train configuration)
     """
     for model, results in models.items():
+        if models_to_compare is not None and model not in models_to_compare:
+            continue
+
         if model == "parameters_grid":
             new_name = "parameters_grid"
         elif model == "original":
             if "sauron" in file:
-                new_name = "rf_sauron"
+                new_name = f"{prefix}rf_sauron"
             else:
-                new_name = "rf"
+                new_name = f"{prefix}rf"
         elif model == "subgraphilp":
             new_name = f"{prefix}subILP{suffix}"
         else:
-            new_name = f"{model}{suffix}"
+            new_name = f"{prefix}{model}{suffix}"
 
         if drug in drugs_dict:
             if new_name in drugs_dict[drug] and drugs_dict[drug][new_name] != results:
@@ -78,7 +83,7 @@ def fetch_models(drugs_dict, drug, models, prefix, suffix, file):
             drugs_dict[drug] = {new_name: results}
 
 
-def aggregate_result_files(results_path, condition, targeted=False):
+def aggregate_result_files(results_path, condition, targeted=False, all_features=False):
     """
     different configurations are run in parallel for speed. this function aggregates all results in one dictionary
     """
@@ -95,6 +100,8 @@ def aggregate_result_files(results_path, condition, targeted=False):
     ]
 
     not_to_include = None
+    drugs_dict = {}
+    drugs_with_targets = None
     if targeted:
         targeted_folder = [
             folder for folder in results_folders if "targeted" in folder
@@ -103,9 +110,6 @@ def aggregate_result_files(results_path, condition, targeted=False):
         if os.path.isfile(to_check):
             not_to_include = pd.read_csv(to_check, header=None).iloc[:, 0].to_list()
 
-    drugs_dict = {}
-    drugs_with_targets = None
-    if targeted:
         # extract the drugs with targets from the first file (arbitrary choice, should be the same drugs set for all)
         target_file = [file for file in results_files if "targeted" in file]
         for tf in target_file:  # TODO: remove
@@ -115,7 +119,32 @@ def aggregate_result_files(results_path, condition, targeted=False):
         target_dd = read_results_file(target_file)
         drugs_with_targets = list(target_dd.keys())
 
+    models_to_compare = None
+    if all_features:
+        original_file = [file for file in results_files if "original" in file][0]
+        original_dd = read_results_file(original_file)
+        models_to_compare = original_dd[list(original_dd.keys())[0]].keys()
+
     for file in results_files:
+        result_dict = read_results_file(file)
+        print(file, len(result_dict.keys()))  # TODO: remove
+
+        if "original" in file:
+            if all_features:
+                prefix0 = "all_"
+            else:
+                continue
+        else:
+            prefix0 = ""
+        if "targeted" in file:
+            if targeted:
+                prefix1 = "targeted_"
+            else:
+                continue
+        else:
+            prefix1 = ""
+        prefix = f"{prefix0}{prefix1}"
+
         if "biased" in file:
             suffix1 = "_bias"
         else:
@@ -125,23 +154,21 @@ def aggregate_result_files(results_path, condition, targeted=False):
         else:
             suffix2 = ""
         suffix = f"{suffix1}{suffix2}"
-        if targeted and "targeted" in file:
-            prefix = "targeted_"
-        elif not targeted and "targeted" in file:
-            # not using targets' results for plotting
-            continue
-        else:
-            prefix = ""
 
-        result_dict = read_results_file(file)
-        print(file, len(result_dict.keys()))  # TODO: remove
         for drug, models in result_dict.items():
-            if not targeted:
-                # update drugs_dict with all drugs
-                fetch_models(drugs_dict, drug, models, prefix, suffix, file)
-            elif targeted and drug in drugs_with_targets:
-                # update drugs_dict with only drugs that have targets
-                fetch_models(drugs_dict, drug, models, prefix, suffix, file)
+            if targeted and drug not in drugs_with_targets:
+                continue
+
+            # update drugs_dict with only drugs that have targets
+            fetch_models(
+                drugs_dict,
+                drug,
+                models,
+                prefix,
+                suffix,
+                file,
+                models_to_compare=models_to_compare,
+            )
     if len(drugs_dict) == 0:
         warnings.warn("no results found")
     else:
@@ -167,38 +194,34 @@ def best_model_per_drug(
     model is the simplest model possible.
     """
     models_performance = {}
+    all_models = None
     for drug in test_scores.index.to_list():
         drug_df = test_scores.loc[drug].round(2)
+        if all_models is None:
+            all_models = drug_df.index.to_list()
+
         temp = drug_df.copy(deep=True)
         best_by = None
-        if regression:
-            best_scores = set()
-            for ctr in range(len(drug_df.unique())):
+        best_scores = set()
+        for ctr in range(len(drug_df.unique())):
+            if regression:
                 best_score = temp.min()
-
                 second_best = temp[temp.values != best_score].min()
                 best_by = second_best - best_score
-                if best_by >= thresh:
-                    best_scores.add(best_score)
-                    break
-                else:
-                    best_scores.update([best_score, second_best])
-                    temp = temp[temp.values != second_best]
-        else:
-            best_scores = set()
-            for ctr in range(len(drug_df.unique())):
-                best_score = drug_df.max()
-
-                second_best = drug_df[drug_df.values != best_score].max()
+            else:
+                best_score = temp.max()
+                second_best = temp[temp.values != best_score].max()
                 best_by = best_score - second_best
-                if best_by >= thresh:
-                    best_scores.add(best_score)
-                    break
-                else:
-                    best_scores.update([best_score, second_best])
-                    temp = temp[temp.values != second_best]
 
+            if best_by >= thresh:
+                best_scores.add(best_score)
+                break
+            else:
+                best_scores.update([best_score, second_best])
+                temp = temp[temp.values != second_best]
         best_models = drug_df[drug_df.isin(best_scores)].index.to_list()
+
+        # if the random model is among the best models, halt analysis for current drug
         if any(["random" in model for model in best_models]):
             best_model = [model for model in best_models if "random" in model][0]
             if best_model in models_performance:
@@ -212,24 +235,23 @@ def best_model_per_drug(
         best_model = None
         for model in best_models:
             model_features = final_models_num_features[drug][model]
-            model_runtime = runtimes.loc[model].loc[drug]
-            if model_features is None and "random" in model:
-                to_replace = "_".join(["corr_num", *model.split("_")[1:]])
-                model_features = (
-                    final_models_num_features[drug][to_replace]
-                    if to_replace in final_models_num_features[drug]
-                    else inf
-                )
-            if model_features < min_features or (
-                model_features == min_features and model_runtime < min_runtime
-            ):
+            model_runtime = runtimes.loc[drug, model]
+            if model_features < min_features:
                 min_features = model_features
                 min_runtime = model_runtime
                 best_model = model
+            elif model_features == min_features and model_runtime < min_runtime:
+                min_features = model_features
+                min_runtime = model_runtime
+                best_model = model
+
         if best_model in models_performance:
             models_performance[best_model].append((drug, best_by))
         else:
             models_performance[best_model] = [(drug, best_by)]
+    for model in all_models:
+        if model not in models_performance:
+            models_performance[model] = []
     return models_performance
 
 
@@ -240,9 +262,12 @@ def postprocessing(
     regression,
     metrics,
     thresh,
+    all_features=False,
     params_acc_stat="mean",
 ):
-    drugs_dict = aggregate_result_files(results_path, condition, targeted)
+    drugs_dict = aggregate_result_files(
+        results_path, condition, targeted, all_features=all_features
+    )
 
     runtimes = {}
     final_models_parameters = {}
@@ -257,7 +282,6 @@ def postprocessing(
         final_models_acc[metric] = {}
         parameters_grid_acc[metric] = {}
         parameters_grid_acc_per_drug[metric] = {}
-        cross_validation_splits_acc[metric] = {}
 
     parameters_grid = None
     for drug, rf_models in drugs_dict.items():
@@ -265,11 +289,11 @@ def postprocessing(
         final_models_parameters[drug] = {}
         final_models_num_features[drug] = {}
         final_models_best_features[drug] = {}
+        cross_validation_splits_acc[drug] = {}
         for metric in metrics:
             final_models_acc[metric][drug] = {}
             parameters_grid_acc[metric][drug] = {}
             parameters_grid_acc_per_drug[metric][drug] = {}
-            cross_validation_splits_acc[metric][drug] = {}
 
         for rf_model, results in rf_models.items():
             if rf_model == "parameters_grid":
@@ -320,7 +344,7 @@ def postprocessing(
                     "num_features_overall"
                 ]
 
-                if "random" not in rf_model:
+                if "random" not in rf_model and not all_features:
                     dict_info = literal_eval(best_model["features_importance"])
                     final_models_best_features[drug][rf_model] = pd.DataFrame(
                         dict_info["data"],
@@ -331,9 +355,10 @@ def postprocessing(
 
                 # region arrange cross validation splits accuracies
                 parameters_scores = results["parameters_combo_cv_results"]
+                cross_validation_splits_acc[drug][rf_model] = {}
                 for metric in metrics:
-                    if len(parameters_grid) < 2:
-                        cross_validation_splits_acc[metric][drug][rf_model] = {
+                    if len(parameters_grid) == 1:
+                        cross_validation_splits_acc[drug][rf_model][metric] = {
                             f"split_{cv_idx}": cv_acc
                             for cv_idx, cv_acc in enumerate(
                                 list(parameters_scores.values())[0][f"ACCs_{metric}"]
@@ -341,21 +366,25 @@ def postprocessing(
                         }
                         continue
 
-                    cross_validation_splits_acc[metric][drug][rf_model] = {}
+                    cross_validation_splits_acc[drug][rf_model][metric] = {}
                     for cv_results in parameters_scores.values():
                         metric_cv_acc = cv_results[f"ACCs_{metric}"]
                         for cv_idx, cv_acc in enumerate(metric_cv_acc):
                             if (
                                 cv_idx
-                                in cross_validation_splits_acc[metric][drug][rf_model]
+                                in cross_validation_splits_acc[drug][rf_model][metric]
                             ):
-                                cross_validation_splits_acc[metric][drug][rf_model][
+                                cross_validation_splits_acc[drug][rf_model][metric][
                                     f"split_{cv_idx}"
                                 ].append(cv_acc)
                             else:
-                                cross_validation_splits_acc[metric][drug][rf_model][
+                                cross_validation_splits_acc[drug][metric][rf_model][
                                     f"split_{cv_idx}"
                                 ] = [cv_acc]
+                if len(parameters_grid) == 1:
+                    cross_validation_splits_acc[drug][rf_model] = pd.DataFrame(
+                        cross_validation_splits_acc[drug][rf_model]
+                    )
                 # endregion
 
                 # region arrange hyperparameter tuning accuracies
@@ -386,19 +415,43 @@ def postprocessing(
                             rf_model
                         ] = cv_stats_df[f"{metric}_{params_acc_stat}"].to_list()
                 # endregion
-    runtimes = serialize_dict(runtimes, [1, 0])
+    runtimes = serialize_dict(runtimes, [0]).swaplevel(0, 1, axis=1)
     final_models_parameters = serialize_dict(
         final_models_parameters, [2, 1]
     ).transpose()
+
+    if all_features:
+        all_features_acc = {}
+        for metric, results in final_models_acc.items():
+            all_features_acc[metric] = {}
+            for drug, models in results.items():
+                all_features_acc[metric][drug] = {}
+                orig = [
+                    model.replace("all_", "")
+                    for model in list(models.keys())
+                    if "all_" in model
+                ]
+                for model, scores in models.items():
+                    if model in orig or "all" in model:
+                        all_features_acc[metric][drug][model] = scores
+    else:
+        all_features_acc = None
 
     metric_best_models = {}
     for metric in metrics:
         final_models_acc[metric] = serialize_dict(
             final_models_acc[metric], 0
         ).swaplevel(axis=1)
+
+        if all_features_acc is not None:
+            all_features_acc[metric] = serialize_dict(
+                all_features_acc[metric], 0
+            ).swaplevel(axis=1)
+
         parameters_grid_acc[metric] = serialize_dict(
             parameters_grid_acc[metric], [2, 0]
         )
+
         parameters_grid_acc_per_drug[metric] = serialize_dict(
             parameters_grid_acc_per_drug[metric], [0]
         )
@@ -411,22 +464,149 @@ def postprocessing(
             thresh,
         )
 
-    if len(parameters_grid) < 2:
-        for metric in metrics:
-            for drug in cross_validation_splits_acc[metric].keys():
-                cross_validation_splits_acc[metric][drug] = pd.DataFrame(
-                    cross_validation_splits_acc[metric][drug]
-                ).transpose()
+    metric_best_models_count = {}
+    for metric, results in metric_best_models.items():
+        temp = {}
+        for model, drugs in results.items():
+            temp[model] = len(drugs)
+        metric_best_models_count[metric] = (
+            pd.DataFrame(temp, index=["count"]).transpose().squeeze()
+        )
+
+    drugs_acc = {}
+    for metric in final_models_acc.keys():
+        metric_drugs = final_models_acc[metric]
+        for drug in metric_drugs.index:
+            if drug in drugs_acc:
+                drugs_acc[drug][metric] = metric_drugs.loc[drug].unstack(level=0)
+            else:
+                drugs_acc[drug] = {metric: metric_drugs.loc[drug].unstack(level=0)}
 
     return (
         parameters_grid,
         final_models_acc,
+        all_features_acc,
+        drugs_acc,
         final_models_parameters,
         final_models_best_features,
         final_models_num_features,
         metric_best_models,
+        metric_best_models_count,
         parameters_grid_acc,
         parameters_grid_acc_per_drug,
         cross_validation_splits_acc,
         runtimes,
     )
+
+
+def postprocess_final(results_file):
+    final_results = read_results_file(results_file)
+    scores = {}
+    for drug, results in final_results.items():
+        for model, result in results.items():
+            if model != "parameters_grid":
+                for grid_idx, params_results in result.items():
+                    if grid_idx in scores:
+                        if drug in scores[grid_idx]:
+                            if model in scores[grid_idx][drug]:
+                                warnings.warn(
+                                    f"{model} already exists for this parameter combination! "
+                                    f"Second instance is ignored"
+                                )
+                                continue
+                            scores[grid_idx][drug][model] = params_results[
+                                "test_scores"
+                            ]
+                        else:
+                            scores[grid_idx][drug] = {
+                                model: params_results["test_scores"]
+                            }
+                    else:
+                        scores[grid_idx] = {
+                            drug: {model: params_results["test_scores"]}
+                        }
+    scores_df = {
+        grid_idx: serialize_dict(idx_scores, [0]).swaplevel(0, 1, axis=1)
+        for grid_idx, idx_scores in scores.items()
+    }
+    return scores_df
+
+
+def process_trees_info(rf_trees_file):
+    trees_json = []
+    with open(rf_trees_file, "r", encoding="utf-8") as f:
+        json_data = re.sub(r"}\s*{", "},{", f.read())
+        trees_json.extend(json.loads("[" + json_data + "]"))
+
+    # fetch each tree index and information
+    trees_info = {}
+    for tree in trees_json:
+        for tree_idx, info in tree.items():  # one element loop
+            trees_info[tree_idx] = {
+                "cell_lines": info["cell_lines"],
+                "features": info["features"],
+                "features_importance": info["features_importance"],
+            }
+
+    used_features_count = {}
+    used_features_importance = {}
+    for tree_info in trees_info.values():
+        for idx, feature in enumerate(tree_info["features"]):
+            if feature in used_features_count:
+                used_features_count[feature] += 1
+                used_features_importance[feature].append(
+                    tree_info["features_importance"][idx]
+                )
+            else:
+                used_features_count[feature] = 1
+                used_features_importance[feature] = [
+                    tree_info["features_importance"][idx]
+                ]
+
+    # used_features = pd.DataFrame(used_features).transpose()
+    return used_features_count, used_features_importance
+
+
+def trees_summary(results_path, condition, all_features=False):
+    all_folders = [
+        os.path.join(results_path, folder)
+        for folder in os.listdir(results_path)
+        if condition in folder
+    ]
+    trees_folders = [
+        os.path.join(folder, "rf_trees_info")
+        for folder in all_folders
+        if os.path.isdir(os.path.join(folder, "rf_trees_info"))
+    ]
+    trees_features_summary = {}
+    trees_features_dist = {}
+    for folder in trees_folders:
+        ml_method = folder.split("/")[-2].split("_")[0]
+        trees_features_summary[ml_method] = {}
+        trees_features_dist[ml_method] = {}
+        for drug_name in os.listdir(folder):
+            trees_features_summary[ml_method][drug_name] = {}
+            trees_features_dist[ml_method][drug_name] = {}
+            trees_folder = os.path.join(folder, drug_name)
+            for model_trees in os.listdir(trees_folder):
+                model = model_trees.split(".")[0]
+                trees_file = os.path.join(trees_folder, model_trees)
+                if not all_features and "original" in trees_file:
+                    continue
+                features_dist, importance = process_trees_info(trees_file)
+                trees_features_summary[ml_method][drug_name][model] = {
+                    "features_dist": pd.DataFrame(features_dist, index=["count"])
+                    .transpose()
+                    .sort_values(by="count", ascending=False)
+                    .reset_index()
+                    .rename({"index": "GeneID"}),
+                    "features_importance": importance,
+                }
+                trees_features_dist[ml_method][drug_name][
+                    model
+                ] = trees_features_summary[ml_method][drug_name][model][
+                    "features_dist"
+                ][
+                    "count"
+                ]
+    return trees_features_dist, trees_features_summary

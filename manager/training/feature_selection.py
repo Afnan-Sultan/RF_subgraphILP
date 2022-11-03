@@ -8,6 +8,7 @@ import pandas as pd
 from manager.config import Kwargs
 from manager.training.subgraphilp import subgraphilp
 from manager.training.utils import get_num_features, random_samples
+from manager.training.weighting_samples import weighted_expression
 
 logger = logging.getLogger(__name__)
 
@@ -29,8 +30,15 @@ def feature_selection(
     """
     model = kwargs.model.current_model
 
+    if kwargs.training.weight_features:
+        temp_train_features = weighted_expression(train_features, train_scores, kwargs)
+    else:
+        temp_train_features = train_features
+
     if model == "subgraphilp":
-        model_features = subgraphilp(train_features, train_classes, kwargs, tree_idx)
+        model_features = subgraphilp(
+            temp_train_features, train_classes, kwargs, tree_idx
+        )
     else:
         if model in ["random", "corr_num"]:
             if kwargs.data.num_features_file is None:
@@ -43,7 +51,7 @@ def feature_selection(
 
         if model.startswith("corr"):
             corr_sorted_scores = (
-                train_features.corrwith(train_scores).sort_values().abs()
+                temp_train_features.corrwith(train_scores).sort_values().abs()
             )
             if model == "corr_num":
                 # using the top-k number of correlated features to ic50. k_corr = k_ILP

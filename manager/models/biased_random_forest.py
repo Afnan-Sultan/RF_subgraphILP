@@ -284,7 +284,7 @@ def output_tree_info(
     """
     if kwargs.training.gcv_idx is None and kwargs.training.cv_idx is None:
         out_path = os.path.join(
-            kwargs.intermediate_output, kwargs.data.drug_name, "rf_trees_info"
+            kwargs.results_dir, "rf_trees_info", kwargs.data.drug_name
         )
         os.makedirs(out_path, exist_ok=True)
         out_file = os.path.join(out_path, f"{kwargs.model.current_model}.json")
@@ -461,17 +461,17 @@ def _parallel_build_trees(
         # check_input is changed to True to force each tree to check feature names
         tree.fit(X, y, sample_weight=curr_sample_weight, check_input=True)
 
-        if kwargs.training.bias_rf:
-            if kwargs.training.output_trees_info:
-                # output tree info (bootstrapped samples, features, and features importance) for analysis
-                output_tree_info(
-                    bootstrapped_samples=tree.bootstrapped_samples,
-                    biased_features=biased_features,
-                    importance=tree.feature_importances_,
-                    tree_idx=tree_idx,
-                    kwargs=kwargs,
-                )
+        if kwargs.training.output_trees_info:
+            # output tree info (bootstrapped samples, features, and features importance) for analysis
+            output_tree_info(
+                bootstrapped_samples=tree.bootstrapped_samples,
+                biased_features=biased_features,
+                importance=tree.feature_importances_,
+                tree_idx=tree_idx,
+                kwargs=kwargs,
+            )
 
+        if kwargs.training.bias_rf:
             # each tree is trained on features' subset, but the RF is using all features.
             # Therefore, a value of 0 is assigned to the non-used features
             importance = bias_feature_importance(tree, features_name)

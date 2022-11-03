@@ -86,10 +86,12 @@ class TrainingConfig(BaseModel):
     num_random_samples: int = 10
 
     # experimentation parameters
-    weight_samples: bool
-    simple_weight: Optional[bool]
+    weight_samples: Optional[bool] = True
+    simple_weight: Optional[bool] = True
+    weight_features: Optional[bool] = True
     regression: bool
     cell_lines_thresh: int = 700  # min number of cell lines per drug
+    original_mat: bool = False
 
 
 class ModelConfig(BaseModel):
@@ -183,6 +185,13 @@ class Kwargs(BaseModel):
     output_selected_drugs: bool = True  # TODO: can be removed when done
 
     @cached_property
+    def original(self):
+        if self.training.original_mat:
+            return "original_"
+        else:
+            return ""
+
+    @cached_property
     def method(self):
         if self.training.regression:
             return "regression"
@@ -192,10 +201,14 @@ class Kwargs(BaseModel):
     @cached_property
     def weight(self):
         if self.training.weight_samples:
-            if self.training.simple_weight:
-                return "_weighted"
+            if self.training.weight_features:
+                temp = "_double"
             else:
-                return "_weighted_linear"
+                temp = ""
+            if self.training.simple_weight:
+                return f"_weighted{temp}"
+            else:
+                return f"_weighted_linear{temp}"
         else:
             return "_not_weighted"
 
@@ -246,7 +259,7 @@ class Kwargs(BaseModel):
             folder = ""
         new_dir = os.path.join(
             self.output_dir,
-            f"{folder}{self.method}{self.weight}{self.bias}{self.target}"
+            f"{self.original}{folder}{self.method}{self.weight}{self.bias}{self.target}"
             f"{self.sauron_rf}_"
             f"gt_{self.training.cell_lines_thresh}",
         )

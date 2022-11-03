@@ -51,3 +51,18 @@ def calculate_simple_weights(threshold, response_values):
                 current_weight = factor
                 weights.append(current_weight)
     return weights
+
+
+def get_weights(train_scores, kwargs):
+    if kwargs.training.weight_samples:
+        if kwargs.training.simple_weight:
+            return calculate_simple_weights(kwargs.data.drug_threshold, train_scores)
+        else:
+            return calculate_linear_weights(kwargs.data.drug_threshold, train_scores)
+    else:
+        return None
+
+
+def weighted_expression(train_features, train_scores, kwargs):
+    weights = get_weights(train_scores, kwargs)
+    return train_features.mul(weights, axis=0)

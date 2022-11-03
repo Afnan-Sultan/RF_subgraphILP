@@ -20,6 +20,7 @@
     "num_random_samples": 25,
     "weight_samples": true,
     "simple_weight": true,
+    "weight_features": true,
     "regression": false,
     "cell_lines_thresh":750
   },

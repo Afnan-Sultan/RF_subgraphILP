@@ -27,7 +27,7 @@ def filter_drugs(kwargs: Kwargs):
     Select gene expression matrix corresponding to the cell lines associated with drugs passing the cell lines threshold
     """
     selected_drugs = {}
-    if kwargs.from_disk:
+    if kwargs.from_disk and not kwargs.training.original_mat:
         # TODO: can be removed when done. used only for repetition sake
         matrices_dir = kwargs.matrices_output_dir
         if kwargs.training.target_root_node:
@@ -78,7 +78,14 @@ def filter_drugs(kwargs: Kwargs):
                     str(cl) for cl in cell_lines
                 )
             )
-            drug_df = kwargs.data.processed_files.gene_matrix.loc[:, present_cell_lines]
+            if kwargs.training.original_mat:
+                drug_df = kwargs.data.processed_files.original_gene_matrix.loc[
+                    :, present_cell_lines
+                ]
+            else:
+                drug_df = kwargs.data.processed_files.gene_matrix.loc[
+                    :, present_cell_lines
+                ]
 
             present_cell_lines = drug_df.columns.astype(int)
             labels = kwargs.data.processed_files.discretized_matrix.loc[

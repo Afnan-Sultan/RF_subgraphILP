@@ -12,22 +12,7 @@ from manager.models.biased_random_forest import (
 )
 from manager.training.feature_selection import feature_selection
 from manager.training.scoring import calc_accuracy
-from manager.training.weighting_samples import (
-    calculate_linear_weights,
-    calculate_simple_weights,
-)
-
-# from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
-
-
-def get_weights(train_scores, kwargs):
-    if kwargs.training.weight_samples:
-        if kwargs.training.simple_weight:
-            return calculate_simple_weights(kwargs.data.drug_threshold, train_scores)
-        else:
-            return calculate_linear_weights(kwargs.data.drug_threshold, train_scores)
-    else:
-        return None
+from manager.training.weighting_samples import get_weights
 
 
 def get_feature_importance(rf, features_names, kwargs):
