@@ -72,7 +72,7 @@ def plot_columns(
         if axes.ndim > 1:
             ax = axes[row_idx][col_idx]
         else:
-            ax = axes[row_idx]
+            ax = axes[col_idx]
         ax.axes.xaxis.set_visible(False)
 
         if bar:

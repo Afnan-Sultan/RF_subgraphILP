@@ -112,12 +112,13 @@ if __name__ == "__main__":
         analysis["rf_vs_subilp"] = False
 
     row_title_xpos = 0.45
+    fig_height = 12
     for key, val in analysis.items():
         if key == "rf_vs_subilp" and val:
             assert not targeted
             if not regression:
                 row_title_xpos = 0.5
-            fig_name, fig_row_size = f"rf_vs_subilp_{condition}", 15
+            fig_name, fig_width = f"rf_vs_subilp_{condition}", 15
             specific_models = [
                 "rf",
                 "subILP_bias",
@@ -125,7 +126,7 @@ if __name__ == "__main__":
             ]
         elif key == "with_sauron" and val:
             assert regression
-            fig_name, fig_row_size = f"with_sauron_{condition}", 15
+            fig_name, fig_width = f"with_sauron_{condition}", 15
             specific_models = [
                 "rf",
                 "subILP_bias",
@@ -135,7 +136,7 @@ if __name__ == "__main__":
             ]
         elif key == "targeted" and val:
             if regression:
-                fig_name, fig_row_size = f"targeted_{condition}", 19
+                fig_name, fig_width = f"targeted_{condition}", 19
                 specific_models = [
                     "rf",
                     "subILP_bias",
@@ -147,7 +148,7 @@ if __name__ == "__main__":
                 ]
             else:
                 row_title_xpos = 0.5
-                fig_name, fig_row_size = f"targeted_{condition}", 15
+                fig_name, fig_width = f"targeted_{condition}", 15
                 specific_models = [
                     "rf",
                     "subILP_bias",
@@ -156,7 +157,7 @@ if __name__ == "__main__":
                 ]
         elif key == "data_vs_prior" and val:
             if regression:
-                fig_name, fig_row_size = f"data_vs_prior_{condition}", 17
+                fig_name, fig_width = f"data_vs_prior_{condition}", 17
                 specific_models = [
                     "rf",
                     "subILP_bias",
@@ -169,7 +170,7 @@ if __name__ == "__main__":
                     "corr_thresh_bias_sauron",
                 ]
                 if targeted:
-                    fig_name, fig_row_size = f"targeted_data_vs_prior_{condition}", 19
+                    fig_name, fig_width = f"targeted_data_vs_prior_{condition}", 19
                     specific_models.extend(
                         [
                             "targeted_subILP_bias_sauron",
@@ -177,7 +178,7 @@ if __name__ == "__main__":
                         ]
                     )
             else:
-                fig_name, fig_row_size = f"data_vs_prior_{condition}", 15
+                fig_name, fig_width = f"data_vs_prior_{condition}", 15
                 specific_models = [
                     "rf",
                     "subILP_bias",
@@ -186,10 +187,11 @@ if __name__ == "__main__":
                     "corr_thresh_bias",
                 ]
                 if targeted:
-                    fig_name, fig_row_size = f"targeted_data_vs_prior_{condition}", 15
+                    fig_name, fig_width = f"targeted_data_vs_prior_{condition}", 15
                     specific_models.append("targeted_subILP_bias")
         elif analysis["num_features"]:
-            fig_name, fig_row_size = f"num_features", 15
+            fig_height = 7
+            fig_name, fig_width = f"num_features", 15
             specific_models = [
                 "rf",
                 "subILP_bias",
@@ -200,7 +202,7 @@ if __name__ == "__main__":
             if targeted:
                 specific_models.append("targeted_subILP_bias")
         elif key == "without_bias" and val:
-            fig_name, fig_row_size = f"without_bias_{condition}", 15
+            fig_name, fig_width = f"without_bias_{condition}", 15
             specific_models = [
                 "random",
                 "random_bias",
@@ -212,11 +214,11 @@ if __name__ == "__main__":
                 "corr_thresh_bias",
             ]
             if targeted:
-                fig_name, fig_row_size = f"targeted_without_bias_{condition}", 17
+                fig_name, fig_width = f"targeted_without_bias_{condition}", 17
                 specific_models.extend(["targeted_subILP", "targeted_subILP_bias"])
         elif key == "without_synergy" and val:
             assert regression
-            fig_name, fig_row_size = f"without_synergy_{condition}", 17
+            fig_name, fig_width = f"without_synergy_{condition}", 17
             specific_models = [
                 "subILP_bias",
                 "subILP_sauron",
@@ -229,7 +231,7 @@ if __name__ == "__main__":
                 "corr_thresh_bias_sauron",
             ]
             if targeted:
-                fig_name, fig_row_size = f"targeted_without_synergy_{condition}", 19
+                fig_name, fig_width = f"targeted_without_synergy_{condition}", 19
                 specific_models.extend(
                     [
                         "targeted_subILP_bias_sauron",
@@ -238,7 +240,7 @@ if __name__ == "__main__":
                     ]
                 )
         else:
-            fig_name, fig_row_size = f"performance_{condition}", 25
+            fig_name, fig_width = f"performance_{condition}", 25
             if regression:
                 specific_models = [
                     "rf",
@@ -259,7 +261,7 @@ if __name__ == "__main__":
                     "corr_thresh_bias_sauron",
                 ]
                 if targeted:
-                    fig_name, fig_row_size = f"performance_{condition}", 29
+                    fig_name, fig_width = f"performance_{condition}", 29
                     specific_models.extend(
                         [
                             "targeted_subILP_bias_sauron",
@@ -269,7 +271,7 @@ if __name__ == "__main__":
                         ]
                     )
             else:
-                fig_name, fig_row_size = f"performance_{condition}", 17
+                fig_name, fig_width = f"performance_{condition}", 17
                 specific_models = [
                     "rf",
                     "random",
@@ -282,7 +284,7 @@ if __name__ == "__main__":
                     "corr_thresh_bias",
                 ]
                 if targeted:
-                    fig_name, fig_row_size = f"performance_{condition}", 19
+                    fig_name, fig_width = f"performance_{condition}", 19
                     specific_models.extend(
                         [
                             "targeted_subILP_bias",
@@ -339,7 +341,7 @@ if __name__ == "__main__":
                 regression=regression,
                 fig_ncols=2,
                 sharey="row",
-                figsize=(fig_row_size, 12),
+                figsize=(fig_width, fig_height),
                 showfliers=False,
                 legend_ncol=1,
                 legened_pos_right=0.22,
@@ -368,7 +370,7 @@ if __name__ == "__main__":
                 bar=True,
                 sharey="row",
                 ylabel="number of drugs",
-                figsize=(fig_row_size, 12),
+                figsize=(fig_width, fig_height),
                 legend_ncol=1,
                 legened_pos_right=0.22,
                 change_right_by=0.2,
@@ -392,13 +394,14 @@ if __name__ == "__main__":
                 bar=False,
                 sharey=False,
                 ylabel="number of features",
-                figsize=(fig_row_size, 12),
+                figsize=(fig_width, fig_height),
                 legend_ncol=1,
                 legened_pos_right=0.22,
                 change_right_by=0.2,
                 row_title_xpos=row_title_xpos,  # 0.5, 0.45
                 row_title_ypos=0,
                 ax_text_rot=0,
+                wspace=0.2,
             )
         if per_drug:
             for drug_name, drug_acc in drugs_acc.items():
