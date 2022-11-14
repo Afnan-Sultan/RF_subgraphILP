@@ -11,18 +11,43 @@ from manager.data.network_processing import map_nodes_to_entrez
 from manager.utils import NewJsonEncoder
 
 
-def get_samples(gene_mat, classes, label):
+def get_samples(gene_mat, classes, labels, cls_as_cols=True):
     """
-    select only samples belonging to a specified class.
+    select samples belonging to a specified class.
     This function ensures repetition in case of bootstrapped gene matrix
     """
-    label_cls = classes[classes.values == label].index.to_list()
-    to_include = []
-    for idx, cl in enumerate(gene_mat.columns.to_list()):
-        if cl in label_cls:
-            to_include.append(idx)
-    label_mat = gene_mat.iloc[:, to_include]
-    return label_mat
+
+    # get cell lines belonging to each label
+    cls_per_label = {}
+    for name, label in labels.items():
+        cls_per_label[name] = classes[classes.values == label].index.to_list()
+
+    if cls_as_cols:
+        to_enumerate = gene_mat.columns.to_list()
+    else:
+        to_enumerate = gene_mat.index.to_list()
+
+    # ensure repetition of samples in case of bootstrapped gene matrix
+    idx_per_label = {}
+    for idx, cl in enumerate(to_enumerate):
+        for name, cls in cls_per_label.items():
+            if cl in cls:
+                if name in idx_per_label:
+                    idx_per_label[name].append(idx)
+                else:
+                    idx_per_label[name] = [idx]
+                break
+
+    # retrieve the corresponding matrix per label
+    mat_per_label = {}
+    for name, cls in idx_per_label.items():
+        if cls_as_cols:
+            label_mat = gene_mat.iloc[:, cls]
+        else:
+            label_mat = gene_mat.iloc[cls, :]
+        mat_per_label[name] = label_mat
+
+    return mat_per_label
 
 
 def differential_expression(
@@ -35,14 +60,14 @@ def differential_expression(
     return: str to output file path
     """
 
-    # TODO: carry sample_weight for differential expression
     gene_mat = gene_mat.transpose()
 
-    ref = get_samples(gene_mat, classes, 0)
+    mat_per_label = get_samples(gene_mat, classes, {"ref": 0, "sample": 1})
+    ref, sample = mat_per_label["ref"], mat_per_label["sample"]
+
     ref_mean = ref.mean(axis=1)
     ref_var = ref.var(axis=1)
 
-    sample = get_samples(gene_mat, classes, 1)
     sample_mean = sample.mean(axis=1)
     sample_var = sample.var(axis=1)
 

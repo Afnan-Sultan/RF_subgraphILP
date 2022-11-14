@@ -413,6 +413,7 @@ def _parallel_build_trees(
 
         bootstrapped_X_scores = train_scores.iloc[indices]
         bootstrapped_X_classes = train_classes.iloc[indices]
+        # %%%%%%%%%%
 
         if sample_weight is None:
             # set the weight of each sample to 1
@@ -433,6 +434,7 @@ def _parallel_build_trees(
                 bootstrapped_X_weights[1].to_list(), index=bootstrapped_X_weights[0]
             )
 
+        # %%%%%%%%%%
         biased_features = None
         if kwargs.training.bias_rf:
             # select features of those reported from the method of interest

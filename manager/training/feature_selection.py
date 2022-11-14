@@ -31,7 +31,9 @@ def feature_selection(
     model = kwargs.model.current_model
 
     if kwargs.training.weight_features:
-        temp_train_features = weighted_expression(train_features, train_scores, kwargs)
+        temp_train_features = weighted_expression(
+            train_features, train_scores, train_classes, kwargs
+        )
     else:
         temp_train_features = train_features
 

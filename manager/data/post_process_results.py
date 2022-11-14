@@ -76,7 +76,7 @@ def fetch_models(
         if drug in drugs_dict:
             if new_name in drugs_dict[drug] and drugs_dict[drug][new_name] != results:
                 warnings.warn(
-                    f"{new_name} already exists with different values. Second instance is used."
+                    f"{new_name} already exists with different values. Second instance is used. {file}"
                 )
             drugs_dict[drug][new_name] = results
         else:
@@ -126,9 +126,6 @@ def aggregate_result_files(results_path, condition, targeted=False, all_features
         models_to_compare = original_dd[list(original_dd.keys())[0]].keys()
 
     for file in results_files:
-        result_dict = read_results_file(file)
-        print(file, len(result_dict.keys()))  # TODO: remove
-
         if "original" in file:
             if all_features:
                 prefix0 = "all_"
@@ -154,6 +151,9 @@ def aggregate_result_files(results_path, condition, targeted=False, all_features
         else:
             suffix2 = ""
         suffix = f"{suffix1}{suffix2}"
+
+        result_dict = read_results_file(file)
+        print(file, len(result_dict.keys()))  # TODO: remove
 
         for drug, models in result_dict.items():
             if targeted and drug not in drugs_with_targets:
@@ -195,6 +195,7 @@ def best_model_per_drug(
     """
     models_performance = {}
     all_models = None
+    drug_won_by = {}
     for drug in test_scores.index.to_list():
         drug_df = test_scores.loc[drug].round(2)
         if all_models is None:
@@ -223,6 +224,7 @@ def best_model_per_drug(
 
         # if the random model is among the best models, halt analysis for current drug
         if any(["random" in model for model in best_models]):
+            drug_won_by[drug] = ["by_random"]
             best_model = [model for model in best_models if "random" in model][0]
             if best_model in models_performance:
                 models_performance[best_model].append((drug, best_by))
@@ -233,18 +235,21 @@ def best_model_per_drug(
         min_features = inf
         min_runtime = inf
         best_model = None
+        won_by_series = []
         for model in best_models:
             model_features = final_models_num_features[drug][model]
             model_runtime = runtimes.loc[drug, model]
-            if model_features < min_features:
+            if model_features < 0.95 * min_features:
+                won_by_series.append([f"{best_model} --> {model}", "by_num_features"])
                 min_features = model_features
                 min_runtime = model_runtime
                 best_model = model
-            elif model_features == min_features and model_runtime < min_runtime:
+            elif model_features == min_features and model_runtime < 0.95 * min_runtime:
+                won_by_series.append([f"{best_model} --> {model}", "by_num_runtime"])
                 min_features = model_features
                 min_runtime = model_runtime
                 best_model = model
-
+        drug_won_by[drug] = won_by_series
         if best_model in models_performance:
             models_performance[best_model].append((drug, best_by))
         else:
@@ -252,7 +257,19 @@ def best_model_per_drug(
     for model in all_models:
         if model not in models_performance:
             models_performance[model] = []
-    return models_performance
+    return models_performance, drug_won_by
+
+
+def get_drug_count_per_model(metric_best_models):
+    metric_best_models_count = {}
+    for metric, results in metric_best_models.items():
+        temp = {}
+        for model, drugs in results.items():
+            temp[model] = len(drugs)
+        metric_best_models_count[metric] = (
+            pd.DataFrame(temp, index=["count"]).transpose().squeeze()
+        )
+    return metric_best_models_count
 
 
 def postprocessing(
@@ -262,6 +279,7 @@ def postprocessing(
     regression,
     metrics,
     thresh,
+    specific_models=None,
     all_features=False,
     params_acc_stat="mean",
 ):
@@ -271,7 +289,8 @@ def postprocessing(
 
     runtimes = {}
     final_models_parameters = {}
-    final_models_num_features = {}
+    final_models_num_unique_features = {}
+    final_models_avg_num_features = {}
     final_models_best_features = {}
 
     final_models_acc = {}
@@ -287,7 +306,8 @@ def postprocessing(
     for drug, rf_models in drugs_dict.items():
         runtimes[drug] = {}
         final_models_parameters[drug] = {}
-        final_models_num_features[drug] = {}
+        final_models_num_unique_features[drug] = {}
+        final_models_avg_num_features[drug] = {}
         final_models_best_features[drug] = {}
         cross_validation_splits_acc[drug] = {}
         for metric in metrics:
@@ -307,6 +327,8 @@ def postprocessing(
                         "min_samples_leaf"
                     ].astype(int)
             else:
+                if specific_models is not None and rf_model not in specific_models:
+                    continue
                 best_model = results["best_params_performance"]
 
                 # region final model accuracies
@@ -340,8 +362,11 @@ def postprocessing(
                     for param in ["max_features", "min_samples_leaf"]
                 }
 
-                final_models_num_features[drug][rf_model] = best_model[
+                final_models_num_unique_features[drug][rf_model] = best_model[
                     "num_features_overall"
+                ]
+                final_models_avg_num_features[drug][rf_model] = best_model[
+                    "num_features"
                 ]
 
                 if "random" not in rf_model and not all_features:
@@ -437,7 +462,28 @@ def postprocessing(
     else:
         all_features_acc = None
 
-    metric_best_models = {}
+    unique_num_features_df = pd.concat(
+        [pd.DataFrame(final_models_num_unique_features).transpose()],
+        axis=1,
+        keys=["Number of Unique Features"],
+    )
+    avg_num_features_df = pd.concat(
+        [
+            pd.DataFrame(final_models_avg_num_features)
+            .transpose()
+            .loc[unique_num_features_df.index]
+        ],
+        axis=1,
+        keys=["Average Number of Features per Tree"],
+    )
+    final_models_num_features = pd.concat(
+        [unique_num_features_df, avg_num_features_df], axis=1
+    )
+
+    test_metric_best_models = {}
+    test_metric_best_models_detailed = {}
+    cv_metric_best_models = {}
+    cv_metric_best_models_detailed = {}
     for metric in metrics:
         final_models_acc[metric] = serialize_dict(
             final_models_acc[metric], 0
@@ -456,22 +502,52 @@ def postprocessing(
             parameters_grid_acc_per_drug[metric], [0]
         )
 
-        metric_best_models[metric] = best_model_per_drug(
+        (
+            test_metric_best_models[metric],
+            test_metric_best_models_detailed[metric],
+        ) = best_model_per_drug(
             final_models_acc[metric]["test_score"],
-            final_models_num_features,
+            final_models_num_unique_features,
+            runtimes["gcv_runtime"],
+            regression,
+            thresh,
+        )
+        (
+            cv_metric_best_models[metric],
+            cv_metric_best_models_detailed[metric],
+        ) = best_model_per_drug(
+            final_models_acc[metric]["train_score"],
+            final_models_num_unique_features,
             runtimes["gcv_runtime"],
             regression,
             thresh,
         )
 
+    test_metric_best_models_count = get_drug_count_per_model(test_metric_best_models)
+    cv_metric_best_models_count = get_drug_count_per_model(cv_metric_best_models)
+
     metric_best_models_count = {}
-    for metric, results in metric_best_models.items():
-        temp = {}
-        for model, drugs in results.items():
-            temp[model] = len(drugs)
-        metric_best_models_count[metric] = (
-            pd.DataFrame(temp, index=["count"]).transpose().squeeze()
-        )
+    metric_best_models = {}
+    metric_best_models_detailed = {}
+    for metric in test_metric_best_models_count:
+        indices = test_metric_best_models_count[metric].index.to_list()
+        metric_best_models_count[metric] = pd.DataFrame(
+            [
+                test_metric_best_models_count[metric].values,
+                cv_metric_best_models_count[metric].loc[indices].values,
+            ],
+            columns=indices,
+            index=["test_score", "train_score"],
+        ).transpose()
+
+        metric_best_models[metric] = {
+            "test_score": test_metric_best_models[metric],
+            "train_score": cv_metric_best_models[metric],
+        }
+        metric_best_models_detailed[metric] = {
+            "test_score": test_metric_best_models_detailed[metric],
+            "train_score": cv_metric_best_models_detailed[metric],
+        }
 
     drugs_acc = {}
     for metric in final_models_acc.keys():
@@ -490,7 +566,9 @@ def postprocessing(
         final_models_parameters,
         final_models_best_features,
         final_models_num_features,
+        final_models_avg_num_features,
         metric_best_models,
+        metric_best_models_detailed,
         metric_best_models_count,
         parameters_grid_acc,
         parameters_grid_acc_per_drug,
