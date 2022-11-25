@@ -1,0 +1,676 @@
+Cell line,Tissue Diagnosis
+888,Melanoma
+105KC,Chondrosarcoma
+143B,Osteosarcoma
+23132/87,Adenocarcinoma
+501A,Melanoma
+537 MEL,Melanoma
+59M,Carcinoma
+624 mel,Melanoma
+769-P,Adenocarcinoma
+786-O,Adenocarcinoma
+928 mel,Melanoma
+A-375,Melanoma
+A-427,Carcinoma
+A-431,Carcinoma Squamous Cell
+A-498,Carcinoma
+A-673,Rhabdomyosarcoma
+A172,Glioblastoma
+A2058,Melanoma
+A2780,Carcinoma
+A3/KAW,Lymphoma
+A4/Fuk,Lymphoma Non-Hodgkins
+A549,Carcinoma
+ABC-1,Adenocarcinoma
+ACHN,Adenocarcinoma
+AGS,Adenocarcinoma
+AMO-1,Plasmacytoma
+AN3 CA,Adenocarcinoma
+AsPC-1,Adenocarcinoma
+ATRFLOX,Carcinoma
+BEN,Carcinoma
+BFTC-905,Carcinoma Transitional Cell
+BFTC-909,Carcinoma Transitional Cell
+BHY,Carcinoma Squamous Cell
+BICR 10,Carcinoma Squamous Cell
+BICR 22,Carcinoma Squamous Cell
+BICR 31,Carcinoma Squamous Cell
+BICR 78,Carcinoma Squamous Cell
+BJAB,Lymphoma B-cell
+BT-20,Carcinoma
+BT-474,Adenocarcinoma Ductal
+BT-483,Adenocarcinoma Ductal
+BT-549,Adenocarcinoma Ductal
+BxPC-3,Adenocarcinoma
+C-33 A,Carcinoma
+C170,Carcinoma
+C2BBe1,Adenocarcinoma
+C32,Melanoma
+C32TG,Melanoma
+C3A,Carcinoma
+Ca Ski,Carcinoma
+CA46,Malignant Lymphoma - Burkitts Type
+Caco-2,Adenocarcinoma
+Caki-1,Adenocarcinoma Clear Cell
+Caki-2,Carcinoma
+CAL 27,Carcinoma Squamous Cell
+CAL 54,Carcinoma
+CAL-120,Adenocarcinoma
+CAL-12T,Carcinoma Non-Small Cell
+CAL-148,Adenocarcinoma
+CAL-85-1,Adenocarcinoma
+CAL51,Adenocarcinoma
+Calu-1,Carcinoma
+Calu-3,Adenocarcinoma
+Calu-6,Carcinoma Anaplastic
+CAMA-1,Adenocarcinoma
+Caov-3,Adenocarcinoma
+Capan-1,Adenocarcinoma
+Capan-2,Adenocarcinoma
+CaR-1,Adenocarcinoma
+CCRF-SB,Leukemia
+CFPAC-1,Adenocarcinoma Ductal
+ChaGo-K-1,Carcinoma
+CHL-1,Melanoma
+CHP-212,Neuroblastoma
+CI-1,Lymphoma Non-Hodgkins
+CL-11,Carcinoma
+CL-34,Adenocarcinoma
+CL-40,Adenocarcinoma
+COLO 201,Adenocarcinoma
+COLO 205,Adenocarcinoma
+COLO 206F,Adenocarcinoma
+COLO 320DM,Carcinoma
+COLO 678,Carcinoma
+COLO 679,Melanoma
+COLO 680N,Carcinoma Squamous Cell
+COLO 699,Adenocarcinoma
+COLO 741,Carcinoma
+COLO 792,Melanoma
+COLO 794,Melanoma
+COLO 800,Melanoma
+COLO 829,Melanoma
+COLO 849,Melanoma Metastatic
+COLO 853,Melanoma
+COLO 857,Melanoma
+COLO-704,Adenocarcinoma
+COLO-783,Melanoma Metastatic
+COLO-818,Melanoma Metastatic
+COR-L26,Carcinoma Large Cell
+COR-L279,Carcinoma Small Cell
+COR-L47,Carcinoma Small Cell
+COR-L88,Carcinoma Small Cell
+COV318,Carcinoma
+COV362,Carcinoma
+COV413A,Carcinoma
+COV413B,Carcinoma
+COV434,Tumor Granulosa Cell
+COV504,Carcinoma
+COV644,Carcinoma
+CPC-N,Carcinoma Small Cell
+CW-2,Carcinoma
+CX-1,Adenocarcinoma
+DAN-G,Adenocarcinoma
+Daudi,Malignant Lymphoma - Burkitts Type
+DB,Lymphoma B-cell
+DEOC-1,Melanoma
+Detroit 562,Carcinoma
+DLD-1,Adenocarcinoma
+DMS 273,Carcinoma Small Cell
+DMS 454,Carcinoma Small Cell
+DMS 53,Carcinoma Small Cell
+DMS 79,Carcinoma Small Cell
+DOHH-2,Lymphoma B-cell
+DOK,Dysplasia
+DOR 13,Carcinoma
+DU 145,Carcinoma
+DU4475,Carcinoma
+DV-90,Adenocarcinoma
+EB-3,Malignant Lymphoma - Burkitts Type
+EB1,Malignant Lymphoma - Burkitts Type
+EB2,Malignant Lymphoma - Burkitts Type
+EBC-1,Carcinoma Non-Small Cell
+EFM-19,Carcinoma
+EFM-192A,Adenocarcinoma
+EFM-192B,Adenocarcinoma
+EFM-192C,Adenocarcinoma
+EFO-27,Adenocarcinoma
+EJM,Multiple Myeloma
+EKVX,Carcinoma Non-Small Cell
+EPLC-272H,Carcinoma
+ES-2,Adenocarcinoma Clear Cell
+EVSA-T,Carcinoma
+FaDu,Carcinoma Squamous Cell
+Farage,Lymphoma Non-Hodgkins
+FU97,Adenocarcinoma
+G-361,Melanoma
+G-402,Leiomyoma
+G111,Glioma
+G112,Glioma
+G118,Glioma
+G120,Glioma
+G121,Glioma
+G122,Glioma
+G124,Glioma
+G130,Glioma
+G140,Glioma
+G141,Glioma
+G142,Glioma
+G22,Glioma
+G28T,Glioma
+G44,Glioma
+G59,Glioma
+G61,Glioma
+G84,Glioma
+G96,Glioma
+GA-10,Malignant Lymphoma - Burkitts Type
+GP2d,Adenocarcinoma
+GP5d,Adenocarcinoma
+GR-M,Melanoma
+GRANTA-519,Lymphoma B-cell
+GTL-16,Adenocarcinoma
+H322T,Carcinoma Non-Small Cell
+HBL-100,Normal
+HCA-7,Adenocarcinoma
+HCC-15,Carcinoma Non-Small Cell
+HCC1011,Carcinoma Renal Cell
+HCC1143,Adenocarcinoma Ductal
+HCC1162,Adenocarcinoma
+HCC1171,Carcinoma Non-Small Cell
+HCC1187,Adenocarcinoma Ductal
+HCC12,Carcinoma Renal Cell
+HCC1263,Adenocarcinoma
+HCC1319,Carcinoma Renal Cell
+HCC1359,Carcinoma Large Cell
+HCC1395,Adenocarcinoma Ductal
+HCC1419,Adenocarcinoma Ductal
+HCC1428,Adenocarcinoma
+HCC1482,Adenocarcinoma
+HCC1493,Adenocarcinoma
+HCC1500,Adenocarcinoma Ductal
+HCC1534,Unknown
+HCC1569,Carcinoma Metaplastic
+HCC1576,Unknown
+HCC1599,Adenocarcinoma Ductal
+HCC1806,Carcinoma Squamous Cell
+HCC193,Adenocarcinoma
+HCC1937,Adenocarcinoma Ductal
+HCC1954,Adenocarcinoma Ductal
+HCC202,Adenocarcinoma Ductal
+HCC2157,Adenocarcinoma Ductal
+HCC2218,Adenocarcinoma Ductal
+HCC2270,Adenocarcinoma
+HCC2279,Adenocarcinoma
+HCC2302,Adenocarcinoma
+HCC2688,Adenocarcinoma Ductal
+HCC2885,Carcinoma Non-Small Cell
+HCC2911,Carcinoma
+HCC2935,Adenocarcinoma
+HCC33,Carcinoma Small Cell
+HCC364,Adenocarcinoma
+HCC366,Carcinoma Non-Small Cell
+HCC38,Adenocarcinoma Ductal
+HCC4006,Adenocarcinoma
+HCC4011,Adenocarcinoma
+HCC4017,Carcinoma Large Cell
+HCC44,Carcinoma Non-Small Cell
+HCC461,Adenocarcinoma
+HCC515,Adenocarcinoma
+HCC60,Carcinoma
+HCC630,Carcinoma
+HCC70,Adenocarcinoma Ductal
+HCC78,Adenocarcinoma
+HCC827,Adenocarcinoma
+HCC89,Carcinoma Renal Cell
+HCT 116,Carcinoma
+HCT-15,Adenocarcinoma
+HCT-8,Adenocarcinoma
+HEC-1-A,Adenocarcinoma
+HEL,Erythroleukemia
+HeLa,Adenocarcinoma
+Hep G2,Carcinoma Hepatocellular
+HEp-2,Adenocarcinoma
+HEY,Carcinoma
+HGC-27,Carcinoma
+HL-60,Leukemia
+HM7,Adenocarcinoma
+HMY-1,Melanoma
+HN,Carcinoma Squamous Cell
+HNT-34,Leukemia Acute Myelogenic
+HOP-62,Carcinoma Non-Small Cell
+HOP-92,Carcinoma Large Cell
+HPAC,Adenocarcinoma
+HPAF-II,Adenocarcinoma
+Hs 255.T,Adenocarcinoma
+Hs 294T,Melanoma
+Hs 38.T,Teratoma
+Hs 578T,Carcinoma
+Hs 675.T,Carcinoma
+Hs 683,Glioma
+Hs 695T,Melanoma
+Hs 69ST,Melanoma
+Hs 746T,Carcinoma
+Hs 766T,Carcinoma
+Hs 839.T,Melanoma
+Hs 852.T,Melanoma
+Hs 895.T,Melanoma
+Hs 936.T,Melanoma
+Hs 940.T,Melanoma
+HS-Sultan,Lymphoma
+HT,Lymphoma Diffuse Mixed
+HT-1080,Fibrosarcoma
+HT-115,Carcinoma
+HT-144,Melanoma
+HT-29,Adenocarcinoma
+HT-55,Carcinoma
+huH-1,Carcinoma Hepatocellular
+HuH-7,Carcinoma Hepatocellular
+HUP-T3,Adenocarcinoma
+HUP-T4,Carcinoma
+IGR-37,Melanoma
+IGROV-1,Carcinoma
+IM-95,Adenocarcinoma
+IM-95m,Adenocarcinoma
+IMR-32,Neuroblastoma
+IPC-298,Melanoma
+JEKO-1,Lymphoma
+JHH-1,Carcinoma Hepatocellular
+JHH-2,Carcinoma Hepatocellular
+JHH-4,Carcinoma Hepatocellular
+JHH-5,Carcinoma Hepatocellular
+JHH-7,Carcinoma Hepatocellular
+JIMT-1,Adenocarcinoma Ductal
+Jiyoye,Malignant Lymphoma - Burkitts Type
+JJ012,Chondrosarcoma
+JJN-3,Leukemia
+JL-1,Mesothelioma
+"Jurkat, Clone E6-1",Leukemia Acute Lymphocytic
+K-562,Leukemia Chronic Myelogenic
+KARPAS-1106P,Lymphoma B-cell
+KARPAS-422,Lymphoma Non-Hodgkins
+KARPAS-620,Leukemia
+Kasumi-1,Leukemia Acute Myelogenic
+KATO III,Carcinoma
+KCI-MOH1,Adenocarcinoma
+KELLY,Neuroblastoma
+KG-1,Leukemia
+KHM-1B,Multiple Myeloma
+KLE,Adenocarcinoma
+KLM-1,Carcinoma
+KM-12,Adenocarcinoma
+KMM-1,Multiple Myeloma
+KMS-11,Multiple Myeloma
+KMS-12-BM,Multiple Myeloma
+KMS-12-PE,Multiple Myeloma
+KMS-21BM,Multiple Myeloma
+KMS-26,Multiple Myeloma
+KMS-27,Multiple Myeloma
+KMS-28BM,Multiple Myeloma
+KMS-28PE,Multiple Myeloma
+KMS-34,Multiple Myeloma
+KNS-62,Carcinoma Non-Small Cell
+KP-2,Carcinoma
+KP-3,Carcinoma Adenosquamous
+KP4,Carcinoma In Situ Ductal
+KPL-1,Adenocarcinoma Ductal
+KPL-4,Adenocarcinoma Ductal
+KU812,Leukemia Acute Myelogenic
+KURAMOCHI,Carcinoma
+KYSE-140,Carcinoma Squamous Cell
+KYSE-150,Carcinoma Squamous Cell
+KYSE-180,Carcinoma Squamous Cell
+KYSE-270,Carcinoma Squamous Cell
+KYSE-30,Carcinoma Squamous Cell
+KYSE-450,Carcinoma Squamous Cell
+KYSE-510,Carcinoma Squamous Cell
+KYSE-520,Carcinoma Squamous Cell
+KYSE-70,Carcinoma Squamous Cell
+L-363,Leukemia
+LCLC-103H,Carcinoma Large Cell
+LCLC-97TM1,Carcinoma Large Cell
+LN-18,Glioma
+LN-229,Glioma
+LNCAP,Carcinoma
+LOU-NH91,Carcinoma Squamous Cell
+LoVo,Adenocarcinoma
+LOX-IMVI,Melanoma
+LP-1,Multiple Myeloma
+LS 174T,Adenocarcinoma
+LS 180,Adenocarcinoma
+LS1034,Carcinoma
+LXF-289,Adenocarcinoma
+LXFL529,Carcinoma Non-Small Cell
+M059J,Glioblastoma
+M059K,Glioblastoma
+MC116,Lymphoma
+MCAS,Adenocarcinoma
+MCF 10A,Fibrocystic Disease
+MCF-7,Adenocarcinoma
+MCF10DCIS.com,Normal
+MDA-MB-134-VI,Carcinoma
+MDA-MB-157,Carcinoma Medullary
+MDA-MB-175-VII,Adenocarcinoma Ductal
+MDA-MB-231,Adenocarcinoma
+MDA-MB-330,Carcinoma
+MDA-MB-361,Adenocarcinoma
+MDA-MB-415,Adenocarcinoma
+MDA-MB-435,Melanoma
+MDA-MB-436,Adenocarcinoma
+MDA-MB-453,Carcinoma
+MDA-MB-468,Adenocarcinoma
+MDST8,Carcinoma
+ME-1,Leukemia Acute Myelogenic
+ME-180,Carcinoma
+MEL-HO,Melanoma
+MeWo,Melanoma
+MFM-223,Adenocarcinoma Ductal
+MG-63,Osteosarcoma
+MHH-ES-1,Sarcoma Ewings
+MHH-NB-11,Neuroblastoma
+MHH-PREB-1,Lymphoma B-cell
+MIA Paca-2,Carcinoma
+MKN-1,Carcinoma Adenosquamous
+MKN-45,Adenocarcinoma
+MKN-7,Adenocarcinoma Tubular
+MKN-74,Adenocarcinoma
+ML-2,Leukemia Acute Myelogenic
+MM.1S,Multiple Myeloma
+MOLM-16,Leukemia Acute Myelogenic
+MOLP-2,Multiple Myeloma
+MOLP-8,Multiple Myeloma
+MOR,Adenocarcinoma
+MS751,Carcinoma
+MT-3,Carcinoma
+MV-4-11,Leukemia Acute Myelogenic
+MX-1,Carcinoma
+NALM-6,Leukemia
+NAMALWA,Malignant Lymphoma - Burkitts Type
+NCI-H1048,Carcinoma Small Cell
+NCI-H1092,Carcinoma Small Cell
+NCI-H1155,Carcinoma Non-Small Cell
+NCI-H1299,Carcinoma Non-Small Cell
+NCI-H1355,Adenocarcinoma
+NCI-H1373,Adenocarcinoma
+NCI-H1395,Adenocarcinoma
+NCI-H1435,Carcinoma Non-Small Cell
+NCI-H1437,Carcinoma Non-Small Cell
+NCI-H146,Carcinoma Small Cell
+NCI-H1568,Carcinoma Non-Small Cell
+NCI-H1573,Adenocarcinoma
+NCI-H1581,Carcinoma Non-Small Cell
+NCI-H1623,Carcinoma Non-Small Cell
+NCI-H1648,Adenocarcinoma
+NCI-H1650,Adenocarcinoma
+NCI-H1651,Carcinoma Non-Small Cell
+NCI-H1666,Adenocarcinoma
+NCI-H1693,Carcinoma Non-Small Cell
+NCI-H1703,Carcinoma Non-Small Cell
+NCI-H1734,Carcinoma Non-Small Cell
+NCI-H1770,Carcinoma Non-Small Cell
+NCI-H1781,Adenocarcinoma
+NCI-H1792,Adenocarcinoma
+NCI-H1793,Adenocarcinoma
+NCI-H1838,Carcinoma Non-Small Cell
+NCI-H1869,Carcinoma Non-Small Cell
+NCI-H187,Carcinoma Small Cell
+NCI-H1882,Carcinoma Small Cell
+NCI-H1915,Carcinoma Non-Small Cell
+NCI-H1930,Carcinoma Small Cell
+NCI-H1944,Carcinoma Non-Small Cell
+NCI-H196,Carcinoma Small Cell
+NCI-H1975,Adenocarcinoma
+NCI-H2009,Adenocarcinoma
+NCI-H2023,Carcinoma Non-Small Cell
+NCI-H2030,Carcinoma Non-Small Cell
+NCI-H2052,Mesothelioma
+NCI-H2073,Adenocarcinoma
+NCI-H2081,Carcinoma Small Cell
+NCI-H209,Carcinoma Small Cell
+NCI-H2106,Carcinoma Non-Small Cell
+NCI-H2110,Carcinoma Non-Small Cell
+NCI-H2122,Carcinoma Non-Small Cell
+NCI-H2126,Carcinoma Non-Small Cell
+NCI-H2135,Carcinoma Non-Small Cell
+NCI-H2170,Carcinoma Squamous Cell
+NCI-H2171,Carcinoma Small Cell
+NCI-H2172,Carcinoma Non-Small Cell
+NCI-H2196,Carcinoma Small Cell
+NCI-H2198,Carcinoma Small Cell
+NCI-H2228,Carcinoma Non-Small Cell
+NCI-H226,Mesothelioma
+NCI-H23,Carcinoma Non-Small Cell
+NCI-H2347,Carcinoma Non-Small Cell
+NCI-H2369,Mesothelioma
+NCI-H2373,Mesothelioma
+NCI-H2452,Mesothelioma
+NCI-H2461,Mesothelioma
+NCI-H2595,Mesothelioma
+NCI-H2596,Mesothelioma
+NCI-H2722,Mesothelioma
+NCI-H2795,Mesothelioma
+NCI-H28,Mesothelioma
+NCI-H2803,Mesothelioma
+NCI-H2804,Mesothelioma
+NCI-H2810,Mesothelioma
+NCI-H292,Carcinoma Mucoepidermoid
+NCI-H322T,Carcinoma Non-Small Cell
+NCI-H345,Carcinoma Small Cell
+NCI-H358,Carcinoma Non-Small Cell
+NCI-H441,Adenocarcinoma Papillary
+NCI-H446,Carcinoma Small Cell
+NCI-H460,Carcinoma Large Cell
+NCI-H510A,Carcinoma Small Cell
+NCI-H520,Carcinoma Squamous Cell
+NCI-H522,Carcinoma Non-Small Cell
+NCI-H596,Carcinoma Adenosquamous
+NCI-H650,Carcinoma Non-Small Cell
+NCI-H716,Adenocarcinoma
+NCI-H727,Tumor Carcinoid
+NCI-H810,Carcinoma Non-Small Cell
+NCI-H82,Carcinoma Small Cell
+NCI-H820,Adenocarcinoma
+NCI-H847,Carcinoma Small Cell
+NCI-H889,Carcinoma Small Cell
+NCI-H920,Carcinoma Non-Small Cell
+NCI-H929,Multiple Myeloma
+NCI-N417,Carcinoma Small Cell
+NCI-N87,Carcinoma
+NIH:OVCAR-3,Adenocarcinoma
+NTERA-2,Carcinoma
+NU-DUL-1,Lymphoma B-cell
+NUGC-2,Adenocarcinoma
+NUGC-3,Adenocarcinoma
+NUGC-4,Adenocarcinoma
+OAW28,Cystadenocarcinoma Serous
+OAW42,Cystadenocarcinoma Serous
+OCI-AML2,Leukemia Acute Myelogenic
+OCI-AML3,Leukemia Acute Myelogenic
+OCI-AML5,Leukemia Acute Myelogenic
+OCI-LY-10,Lymphoma B-cell
+OCI-LY-19,Lymphoma B-cell
+OCI-LY-3,Lymphoma B-cell
+OCI-LY-7,Lymphoma B-cell
+OCI-M1,Leukemia Acute Myelogenic
+OCI-M2,Leukemia Acute Myelogenic
+OCUM-1,Adenocarcinoma
+Okajima,Adenocarcinoma
+OPM-2,Multiple Myeloma
+OUMS-23,Adenocarcinoma
+OV-90,Adenocarcinoma Papillary Serous
+OV56,Carcinoma
+OV7,Carcinoma
+OVCA 420,Carcinoma
+OvCA 429,Adenocarcinoma
+OvCA 432,Carcinoma
+OVCAR-4,Adenocarcinoma
+OVCAR-5,Adenocarcinoma
+OVCAR-8,Adenocarcinoma
+OVCAR433,Carcinoma
+OVISE,Adenocarcinoma Clear Cell
+OVKATE,Adenocarcinoma Papillary Serous
+OVMANA,Adenocarcinoma Clear Cell
+OVSAHO,Adenocarcinoma Papillary Serous
+OVTOKO,Adenocarcinoma Clear Cell
+PA-1,Carcinoma
+PA-TU-8902,Adenocarcinoma
+PA-TU-8988S,Adenocarcinoma
+PA-TU-8988T,Adenocarcinoma
+Panc 02.03,Adenocarcinoma
+Panc 03.27,Adenocarcinoma
+Panc 04.03,Adenocarcinoma
+Panc 05.04,Adenocarcinoma
+Panc 08.13,Adenocarcinoma
+PANC-1,Adenocarcinoma
+PC-3,Adenocarcinoma
+PE/CA-PJ15,Carcinoma Squamous Cell
+PE01,Adenocarcinoma
+Pfeiffer,Hodgkin's Lymphoma
+PK-45H,Carcinoma
+PK-45P,Carcinoma
+PK-59,Carcinoma
+PK-8,Carcinoma
+PL-21,Leukemia
+PL45,Adenocarcinoma Ductal
+PLC/PRF/5,Carcinoma Hepatocellular
+PSN1,Adenocarcinoma
+QGP-1,Carcinoma Islet Cell
+RAJI,Malignant Lymphoma - Burkitts Type
+RAMOS,Malignant Lymphoma - Burkitts Type
+RC-K8,Lymphoma B-cell
+RCM-1,Adenocarcinoma
+REC-1,Lymphoma B-cell
+RERF-GC-1B,Carcinoma
+RERF-LC-KJ,Adenocarcinoma
+RERF-LC-MS,Carcinoma Non-Small Cell
+RERF-LC-OK,Adenocarcinoma
+RI-1,Lymphoma B-cell
+RKN,Leiomyosarcoma
+RKO,Carcinoma
+RKO-E6,Carcinoma
+RL,Lymphoma B-cell
+RMG-I,Carcinoma
+RMUG-S,Adenocarcinoma
+RPMI 2650,Carcinoma Squamous Cell
+RPMI 8226,Multiple Myeloma
+RPMI-7951,Melanoma
+RT-112,Carcinoma Transitional Cell
+RT4,Carcinoma Transitional Cell
+SC-1,Lymphoma B-cell
+SCC-15,Carcinoma Squamous Cell
+SCC-25,Carcinoma Squamous Cell
+SCC-3,Lymphoma Non-Hodgkins
+SCC-9,Carcinoma Squamous Cell
+SCLC-21H,Carcinoma Small Cell
+SCLC-22H,Carcinoma Small Cell
+SET-2,Leukemia Acute Myelogenic
+SF268,Glioma
+SF539,Glioma
+SIG-M5,Leukemia Acute Myelogenic
+SiHa,Carcinoma Squamous Cell
+SJCRH30,Rhabdomyosarcoma
+SK-BR-3,Adenocarcinoma
+SK-CO-1,Adenocarcinoma
+SK-MEL-1,Melanoma Metastatic
+SK-MEL-2,Melanoma
+SK-MEL-24,Melanoma
+SK-MEL-28,Melanoma
+SK-MEL-3,Melanoma
+SK-MEL-30,Melanoma
+SK-MEL-31,Melanoma
+SK-MEL-5,Melanoma
+SK-MES-1,Carcinoma Squamous Cell
+SK-MM-2,Leukemia
+SK-N-AS,Neuroblastoma
+SK-N-DZ,Neuroblastoma
+SK-N-FI,Neuroblastoma
+SK-N-SH,Neuroblastoma
+SK-OV-3,Adenocarcinoma
+SK23,Melanoma
+SKM-1,Myelodysplasia
+SNU-1,Carcinoma
+SNU-16,Carcinoma
+SNU-182,Carcinoma Hepatocellular
+SNU-216,Carcinoma
+SNU-387,Carcinoma Hepatocellular
+SNU-398,Carcinoma Hepatocellular
+SNU-423,Carcinoma Hepatocellular
+SNU-449,Carcinoma Hepatocellular
+SNU-475,Carcinoma Hepatocellular
+SNU-484,Carcinoma
+SNU-5,Carcinoma
+SNU-601,Carcinoma
+SNU-620,Carcinoma
+SNU-638,Carcinoma
+SNU-668,Carcinoma
+SNU-719,Carcinoma
+SNU-C1,Adenocarcinoma
+SR,Lymphoma Immunoblastic Large Cell
+SR-786,Lymphoma Anaplastic Large Cell
+SU-DHL-1,Lymphoma Non-Hodgkins
+SU-DHL-10,Lymphoma B-cell
+SU-DHL-16,Lymphoma B-cell
+SU-DHL-4,Lymphoma B-cell
+SU-DHL-5,Lymphoma B-cell
+SU-DHL-6,Lymphoma
+SU-DHL-8,Lymphoma B-cell
+SU.86.86,Adenocarcinoma Ductal
+SUIT-2,Adenocarcinoma Tubular
+SUM 1315M02,Adenocarcinoma Ductal
+SUM 149PT,Adenocarcinoma Ductal
+SUM 159PT,Anaplastic Carcinoma
+SUM 229PE,Carcinoma
+SUM 52PE,Carcinoma
+SUP-B15,Leukemia Acute Lymphocytic
+SW 1116,Adenocarcinoma
+SW 1417,Adenocarcinoma
+SW 1463,Adenocarcinoma
+SW 1573,Adenocarcinoma Bronchioloalveolar
+SW 1990,Adenocarcinoma
+SW 403,Adenocarcinoma
+SW 48,Adenocarcinoma
+SW 480,Adenocarcinoma
+SW 527,Adenocarcinoma
+SW 620,Adenocarcinoma
+SW 780,Carcinoma Transitional Cell
+SW 837,Adenocarcinoma
+SW 900,Carcinoma Non-Small Cell
+SW 948,Adenocarcinoma
+SW 982,Sarcoma Synovial
+T-47D,Adenocarcinoma Ductal
+T84,Carcinoma
+T98G,Glioblastoma
+TC-71,Sarcoma Ewings
+TCC-PAN2,Carcinoma
+THP-1,Leukemia Acute Myelogenic
+TK,Lymphoma
+TK-10,Carcinoma
+TMD8,Lymphoma Diffuse Large B Cell
+Toledo,Lymphoma B-cell
+TOV-112D,Adenocarcinoma Endometrioid
+TYK-nu,Carcinoma
+TYK-nu.CP-r,Carcinoma
+U-2 OS,Osteosarcoma
+U-2932,Lymphoma B-cell
+U-698-M,Lymphoma B-cell
+U-937,Lymphoma Diffuse Large B Cell
+U266B1,Multiple Myeloma
+UACC-257,Melanoma
+UACC-812,Adenocarcinoma Ductal
+UACC-893,Adenocarcinoma Ductal
+UCSD-242l,Melanoma
+UKE-1,Leukemia
+UM-UC-1,Carcinoma Transitional Cell
+UM-UC-3,Carcinoma Transitional Cell
+UMC-11,Tumor Carcinoid
+VMRC-LCD,Adenocarcinoma
+WiDr,Adenocarcinoma
+WM-115,Melanoma
+WM-266-4,Melanoma
+WSU-DLCL2,Lymphoma B-cell
+WSU-FSCCL,Lymphoma B-cell
+WSU-NHL,Lymphoma B-cell
+YAPC,Carcinoma
+YMB-1,Carcinoma
+YMB-1-E,Carcinoma
+ZR-75-1,Adenocarcinoma Ductal
+ZR-75-30,Adenocarcinoma Ductal

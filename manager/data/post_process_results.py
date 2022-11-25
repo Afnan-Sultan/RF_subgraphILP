@@ -1,9 +1,11 @@
 import json
+import math
 import os
 import re
 import warnings
 from ast import literal_eval
 from math import inf
+from statistics import mean
 
 import pandas as pd
 
@@ -178,6 +180,33 @@ def aggregate_result_files(results_path, condition, targeted=False, all_features
     return drugs_dict
 
 
+def add_best_model(
+    all_models,
+    models_performance,
+    best_model,
+    drug,
+    best_by,
+    best_models,
+    drug_df,
+    second_best,
+):
+    for model in all_models:
+        if model in models_performance:
+            if model == best_model:
+                models_performance[model][drug] = best_by
+            elif model in best_models:
+                models_performance[model][drug] = abs(drug_df[model] - second_best)
+            else:
+                models_performance[model][drug] = -1
+        else:
+            if model == best_model:
+                models_performance[model] = {drug: best_by}
+            elif model in best_models:
+                models_performance[model] = {drug: abs(drug_df[model] - second_best)}
+            else:
+                models_performance[model] = {drug: -1}
+
+
 def best_model_per_drug(
     test_scores, final_models_num_features, runtimes, regression, thresh
 ):
@@ -196,14 +225,16 @@ def best_model_per_drug(
     models_performance = {}
     all_models = None
     drug_won_by = {}
+    models_count = {}
     for drug in test_scores.index.to_list():
         drug_df = test_scores.loc[drug].round(2)
         if all_models is None:
             all_models = drug_df.index.to_list()
 
-        temp = drug_df.copy(deep=True)
+        temp = drug_df.copy(deep=True).abs()
         best_by = None
         best_scores = set()
+        second_best = 0
         for ctr in range(len(drug_df.unique())):
             if regression:
                 best_score = temp.min()
@@ -217,6 +248,12 @@ def best_model_per_drug(
             if best_by >= thresh:
                 best_scores.add(best_score)
                 break
+            elif math.isnan(second_best):
+                if not len(best_scores) > 0:
+                    best_scores = set(drug_df.values)
+                second_best = min(best_scores)
+                best_by = abs(max(best_scores) - min(best_scores))
+                break
             else:
                 best_scores.update([best_score, second_best])
                 temp = temp[temp.values != second_best]
@@ -226,10 +263,20 @@ def best_model_per_drug(
         if any(["random" in model for model in best_models]):
             drug_won_by[drug] = ["by_random"]
             best_model = [model for model in best_models if "random" in model][0]
-            if best_model in models_performance:
-                models_performance[best_model].append((drug, best_by))
+            if best_model in models_count:
+                models_count[best_model] += 1
             else:
-                models_performance[best_model] = [(drug, best_by)]
+                models_count[best_model] = 1
+            add_best_model(
+                all_models,
+                models_performance,
+                best_model,
+                drug,
+                best_by,
+                best_models,
+                drug_df,
+                second_best,
+            )
             continue
 
         min_features = inf
@@ -245,31 +292,34 @@ def best_model_per_drug(
                 min_runtime = model_runtime
                 best_model = model
             elif model_features == min_features and model_runtime < 0.95 * min_runtime:
-                won_by_series.append([f"{best_model} --> {model}", "by_num_runtime"])
+                won_by_series.append([f"{best_model} --> {model}", "by_runtime"])
                 min_features = model_features
                 min_runtime = model_runtime
                 best_model = model
         drug_won_by[drug] = won_by_series
-        if best_model in models_performance:
-            models_performance[best_model].append((drug, best_by))
+        if best_model in models_count:
+            models_count[best_model] += 1
         else:
-            models_performance[best_model] = [(drug, best_by)]
+            models_count[best_model] = 1
+        add_best_model(
+            all_models,
+            models_performance,
+            best_model,
+            drug,
+            best_by,
+            best_models,
+            drug_df,
+            second_best,
+        )
     for model in all_models:
         if model not in models_performance:
-            models_performance[model] = []
-    return models_performance, drug_won_by
-
-
-def get_drug_count_per_model(metric_best_models):
-    metric_best_models_count = {}
-    for metric, results in metric_best_models.items():
-        temp = {}
-        for model, drugs in results.items():
-            temp[model] = len(drugs)
-        metric_best_models_count[metric] = (
-            pd.DataFrame(temp, index=["count"]).transpose().squeeze()
-        )
-    return metric_best_models_count
+            models_performance[model] = {
+                drug: -1 for drug in test_scores.index.to_list()
+            }
+        if model not in models_count:
+            models_count[model] = 0
+    models_count = pd.DataFrame(models_count, index=["count"]).transpose().squeeze()
+    return models_performance, models_count, drug_won_by
 
 
 def postprocessing(
@@ -292,6 +342,7 @@ def postprocessing(
     final_models_num_unique_features = {}
     final_models_avg_num_features = {}
     final_models_best_features = {}
+    drug_info = {}
 
     final_models_acc = {}
     parameters_grid_acc = {}
@@ -310,6 +361,7 @@ def postprocessing(
         final_models_avg_num_features[drug] = {}
         final_models_best_features[drug] = {}
         cross_validation_splits_acc[drug] = {}
+        drug_info[drug] = {}
         for metric in metrics:
             final_models_acc[metric][drug] = {}
             parameters_grid_acc[metric][drug] = {}
@@ -329,6 +381,8 @@ def postprocessing(
             else:
                 if specific_models is not None and rf_model not in specific_models:
                     continue
+                drug_info[drug][rf_model] = {}
+
                 best_model = results["best_params_performance"]
 
                 # region final model accuracies
@@ -345,6 +399,9 @@ def postprocessing(
                             final_models_parameters_idx
                         ],
                     }
+                    drug_info[drug][rf_model][metric] = best_model["test_scores"][
+                        metric
+                    ]
                 # endregion
 
                 # region arrange final model's runtimes
@@ -368,7 +425,12 @@ def postprocessing(
                 final_models_avg_num_features[drug][rf_model] = best_model[
                     "num_features"
                 ]
-
+                drug_info[drug][rf_model]["num_unique_features"] = best_model[
+                    "num_features_overall"
+                ]
+                drug_info[drug][rf_model]["avg_num_features_per_tree"] = best_model[
+                    "num_features"
+                ]
                 if "random" not in rf_model and not all_features:
                     dict_info = literal_eval(best_model["features_importance"])
                     final_models_best_features[drug][rf_model] = pd.DataFrame(
@@ -482,8 +544,10 @@ def postprocessing(
 
     test_metric_best_models = {}
     test_metric_best_models_detailed = {}
+    test_metric_best_models_count = {}
     cv_metric_best_models = {}
     cv_metric_best_models_detailed = {}
+    cv_metric_best_models_count = {}
     for metric in metrics:
         final_models_acc[metric] = serialize_dict(
             final_models_acc[metric], 0
@@ -504,6 +568,7 @@ def postprocessing(
 
         (
             test_metric_best_models[metric],
+            test_metric_best_models_count[metric],
             test_metric_best_models_detailed[metric],
         ) = best_model_per_drug(
             final_models_acc[metric]["test_score"],
@@ -514,6 +579,7 @@ def postprocessing(
         )
         (
             cv_metric_best_models[metric],
+            cv_metric_best_models_count[metric],
             cv_metric_best_models_detailed[metric],
         ) = best_model_per_drug(
             final_models_acc[metric]["train_score"],
@@ -522,9 +588,6 @@ def postprocessing(
             regression,
             thresh,
         )
-
-    test_metric_best_models_count = get_drug_count_per_model(test_metric_best_models)
-    cv_metric_best_models_count = get_drug_count_per_model(cv_metric_best_models)
 
     metric_best_models_count = {}
     metric_best_models = {}
@@ -566,7 +629,7 @@ def postprocessing(
         final_models_parameters,
         final_models_best_features,
         final_models_num_features,
-        final_models_avg_num_features,
+        drug_info,
         metric_best_models,
         metric_best_models_detailed,
         metric_best_models_count,
@@ -659,20 +722,19 @@ def trees_summary(results_path, condition, all_features=False):
     trees_features_summary = {}
     trees_features_dist = {}
     for folder in trees_folders:
-        ml_method = folder.split("/")[-2].split("_")[0]
-        trees_features_summary[ml_method] = {}
-        trees_features_dist[ml_method] = {}
         for drug_name in os.listdir(folder):
-            trees_features_summary[ml_method][drug_name] = {}
-            trees_features_dist[ml_method][drug_name] = {}
+            trees_features_summary[drug_name] = {}
+            trees_features_dist[drug_name] = {}
             trees_folder = os.path.join(folder, drug_name)
             for model_trees in os.listdir(trees_folder):
                 model = model_trees.split(".")[0]
+                if model == "random":
+                    continue
                 trees_file = os.path.join(trees_folder, model_trees)
                 if not all_features and "original" in trees_file:
                     continue
                 features_dist, importance = process_trees_info(trees_file)
-                trees_features_summary[ml_method][drug_name][model] = {
+                to_dict = {
                     "features_dist": pd.DataFrame(features_dist, index=["count"])
                     .transpose()
                     .sort_values(by="count", ascending=False)
@@ -680,11 +742,22 @@ def trees_summary(results_path, condition, all_features=False):
                     .rename({"index": "GeneID"}),
                     "features_importance": importance,
                 }
-                trees_features_dist[ml_method][drug_name][
-                    model
-                ] = trees_features_summary[ml_method][drug_name][model][
-                    "features_dist"
-                ][
+                trees_features_summary[drug_name][model] = to_dict
+                trees_features_dist[drug_name][model] = to_dict["features_dist"][
                     "count"
                 ]
-    return trees_features_dist, trees_features_summary
+    models_features_imp = {}
+    for drug, models in trees_features_summary.items():
+        models_features_imp[drug] = pd.DataFrame()
+        for model, info in models.items():
+            temp = {}
+            for feature, imp in info["features_importance"].items():
+                temp[feature] = mean(imp)
+            models_features_imp[drug] = pd.concat(
+                [
+                    models_features_imp[drug],
+                    pd.DataFrame(temp, index=[model]).transpose(),
+                ],
+                axis=1,
+            )
+    return trees_features_dist, trees_features_summary, models_features_imp

@@ -69,24 +69,24 @@ def get_weights(train_scores, kwargs):
 
 def weighted_expression(train_features, train_scores, classes, kwargs):
     # multiply all genes of a sample by its weight
+    # TODO: Inquire --> the simple weight makes the sum of both sen and res equal.
+    #  Moreover, the resulting values are too small ( < 0.0x for sens and < 0.00x for res). Is this what we need to do?
     weights = get_weights(train_scores, kwargs)
+    sum_weights_sens = 0
+    sum_weights_res = 0
+    for i in range(len(weights)):
+        if classes.iloc[i] == 0:
+            sum_weights_res += weights[i]
+        elif classes.iloc[i] == 1:
+            sum_weights_sens += weights[i]
+        else:
+            raise ValueError
+
+    for i in range(len(weights)):
+        if classes.iloc[i] == 0:
+            weights[i] = weights[i] / sum_weights_res
+        elif classes.iloc[i] == 1:
+            weights[i] = weights[i] / sum_weights_sens
+        else:
+            raise ValueError
     return train_features.mul(weights, axis=0)
-    # weighted_mat = train_features.mul(weights, axis=0)
-    #
-    # # separate sensitive from resistant cell lines
-    # mat_per_label = get_samples(
-    #     weighted_mat, classes, {"ref": 0, "sample": 1}, cls_as_cols=False
-    # )
-    # ref, sample = mat_per_label["ref"], mat_per_label["sample"]
-    #
-    # # divide each gene by the sum of its expression in the corresponding class
-    # ref_summed = ref.div(ref.sum(axis=0), axis=1)
-    # sample_summed = sample.div(sample.sum(axis=0), axis=1)
-    #
-    # # concatenate the two classes after processing. assert columns order is the same to ensure correct concatenation
-    # assert all(ref_summed.columns == sample_summed.columns)
-    # weighted_summed_mat = pd.concat([ref_summed, sample_summed])
-    #
-    # # reorder cell lines as originally passed. Just a cautious step.
-    # weighted_summed_mat = weighted_summed_mat.loc[train_features.index]
-    # return weighted_summed_mat
