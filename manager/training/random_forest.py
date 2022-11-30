@@ -18,15 +18,16 @@ from manager.training.weighting_samples import get_weights
 def get_feature_importance(rf, features_names, kwargs):
     col_name = "feature_importance"
     features_importance = pd.DataFrame(
-        {"genes": features_names, col_name: rf.biased_feature_importance}
-    )  # biased_feature_importance will return all features in case of no bias
+        {
+            "genes": features_names,
+            col_name: rf.biased_feature_importance,
+        }  # biased_feature_importance will return all features in case of no bias
+    )
     num_features_overall = num_features = num_trees_features = len(features_importance)
 
     # filter and sort non-zero feature_importance
     features_importance = features_importance[features_importance[col_name] > 0]
-    sorted_features = features_importance.sort_values(
-        by=[col_name], ascending=False
-    )  # [:100]
+    sorted_features = features_importance.sort_values(by=[col_name], ascending=False)
 
     # convert gene entrez-ids to gene-symbols
     sorted_features = (

@@ -282,12 +282,19 @@ def output_tree_info(
     """
     This is meant to be used for best model only
     """
-    if kwargs.training.gcv_idx is None and kwargs.training.cv_idx is None:
+    if (
+        kwargs.training.gcv_idx is None and kwargs.training.cv_idx is None
+    ) or kwargs.training.test_average:
         out_path = os.path.join(
             kwargs.results_dir, "rf_trees_info", kwargs.data.drug_name
         )
         os.makedirs(out_path, exist_ok=True)
-        out_file = os.path.join(out_path, f"{kwargs.model.current_model}.json")
+        if kwargs.training.test_average:
+            out_file = os.path.join(
+                out_path, f"{kwargs.model.current_model}_{kwargs.training.cv_idx}.json"
+            )
+        else:
+            out_file = os.path.join(out_path, f"{kwargs.model.current_model}.json")
         with open(out_file, "a") as tree_output:
             tree_output.write(
                 json.dumps(
@@ -464,14 +471,15 @@ def _parallel_build_trees(
         tree.fit(X, y, sample_weight=curr_sample_weight, check_input=True)
 
         if kwargs.training.output_trees_info:
-            # output tree info (bootstrapped samples, features, and features importance) for analysis
-            output_tree_info(
-                bootstrapped_samples=tree.bootstrapped_samples,
-                biased_features=biased_features,
-                importance=tree.feature_importances_,
-                tree_idx=tree_idx,
-                kwargs=kwargs,
-            )
+            if kwargs.model.current_model != "random":
+                # output tree info (bootstrapped samples, features, and features importance) for analysis
+                output_tree_info(
+                    bootstrapped_samples=tree.bootstrapped_samples,
+                    biased_features=biased_features,
+                    importance=tree.feature_importances_,
+                    tree_idx=tree_idx,
+                    kwargs=kwargs,
+                )
 
         if kwargs.training.bias_rf:
             # each tree is trained on features' subset, but the RF is using all features.

@@ -52,9 +52,8 @@ def split_data(gene_mat: pd.DataFrame, meta_data: pd.DataFrame, kwargs: Kwargs):
     }
     splits = {"train": train_info, "test": test_info}
 
-    file_dir = os.path.join(
-        kwargs.matrices_output_dir, kwargs.data.drug_name, "train_test_splits.json"
-    )
-    with open(file_dir, "w") as split_output:
+    file_dir = os.path.join(kwargs.matrices_output_dir, kwargs.data.drug_name)
+    os.makedirs(file_dir, exist_ok=True)
+    with open(os.path.join(file_dir, "train_test_splits.json"), "w") as split_output:
         split_output.write(json.dumps(splits, indent=2, cls=NewJsonEncoder))
     return splits

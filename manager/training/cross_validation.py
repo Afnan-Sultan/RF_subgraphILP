@@ -1,5 +1,6 @@
 import logging
 import statistics
+from math import ceil
 
 import pandas as pd
 from manager.config import Kwargs
@@ -9,7 +10,9 @@ from sklearn.model_selection import StratifiedKFold
 logger = logging.getLogger(__name__)
 
 
-def splits_stats(model_results: dict, subsets: list, regression: bool):
+def splits_stats(
+    model_results: dict, subsets: list, regression: bool, test_average: bool, model: str
+):
     """
     calculate the statistics of the cross validation folds results
     """
@@ -29,6 +32,27 @@ def splits_stats(model_results: dict, subsets: list, regression: bool):
                 ACCs_stats[f"{subset}_median"] = scores_median[score_key]
                 ACCs_stats[f"{subset}_mean"] = score_val
                 ACCs_stats[f"{subset}_std"] = scores_std[score_key]
+
+    if test_average and model != "random":
+        all_features = set()
+        for idx in range(len(model_results["important_features"])):
+            all_features.update(model_results["important_features"][idx]["GeneSymbol"])
+
+        important_features_avg = {}
+        for idx, feature in enumerate(all_features):
+            num_occurrences = 0
+            importance = 0
+            for df in model_results["important_features"]:
+                feature_df = df[df["GeneSymbol"] == feature]
+                if len(feature_df) > 0:
+                    num_occurrences += 1
+                    importance += float(feature_df["feature_importance"])
+            avg_importance = importance / len(model_results["important_features"])
+            important_features_avg[idx] = [feature, avg_importance, num_occurrences]
+        ACCs_stats["important_features"] = pd.DataFrame(
+            important_features_avg,
+            index=["GeneSymbol", "feature_importance", "num_occurrences"],
+        ).transpose()
 
     train_runtime = model_results["train_runtime"]
     ACCs_stats["train_time_median"] = statistics.median(train_runtime)
@@ -69,6 +93,7 @@ def cross_validation(
 
     cv_results = {}
     k = 0  # cross validation counter
+    num_features_per_cv = []
     for train_index, test_index in cv.split(train_features, train_classes):
         kwargs.training.cv_idx = k  # globalize as it will be used for naming
 
@@ -83,7 +108,15 @@ def cross_validation(
         cv_train_features = train_features.iloc[train_index]
         cv_test_features = train_features.iloc[test_index]
 
-        (fit_runtime, test_runtime, acc, sorted_features, _, _, _,) = which_rf(
+        (
+            fit_runtime,
+            test_runtime,
+            acc,
+            sorted_features,
+            num_features_overall,
+            num_features,
+            num_trees_features,
+        ) = which_rf(
             rf_params=rf_params,
             train_features=cv_train_features,
             train_classes=cv_train_classes,
@@ -94,10 +127,19 @@ def cross_validation(
             test_classes=cv_test_classes,
             kwargs=kwargs,
         )
+        num_features_per_cv.append(num_features)
+
+        if sorted_features is not None:
+            if kwargs.training.test_average:
+                sorted_features = sorted_features
+            else:
+                sorted_features = sorted_features[:10]
+        else:
+            sorted_features = None
 
         if len(cv_results) > 1:
             if cv_results["important_features"] is not None:
-                cv_results["important_features"].append(sorted_features[:10])
+                cv_results["important_features"].append(sorted_features)
             cv_results["train_runtime"].append(fit_runtime)
             cv_results["test_runtime"].append(test_runtime)
             for subset, acc_score in acc.items():
@@ -108,7 +150,7 @@ def cross_validation(
                 "test_runtime": [test_runtime],
                 "important_features": None  # features not reported for the random model
                 if sorted_features is None
-                else [sorted_features[:10]],
+                else [sorted_features],
             }
             for subset, acc_score in acc.items():
                 cv_results[f"ACCs_{subset}"] = [acc_score]
@@ -121,8 +163,21 @@ def cross_validation(
     kwargs.training.cv_idx = None
 
     cv_results["stats"] = splits_stats(
-        cv_results, kwargs.data.acc_subset, kwargs.training.regression
+        cv_results,
+        kwargs.data.acc_subset,
+        kwargs.training.regression,
+        kwargs.training.test_average,
+        kwargs.model.current_model,
     )
+
+    if kwargs.training.test_average:
+        # output the selected number of features to be used for the random model
+        if "subgraphilp" in kwargs.model.current_model:
+            num_features = ceil(sum(num_features_per_cv) / len(num_features_per_cv))
+            with open(
+                kwargs.subgraphilp_num_features_output_file, "a"
+            ) as out_num_features:
+                out_num_features.write(f"{kwargs.data.drug_name},{num_features}\n")
     return cv_results
 
 

@@ -139,21 +139,22 @@ def grid_search_cv(
 
     # ========================== #
 
-    # train best model with the best parameters from cross validation
-    gcv_results["best_params_performance"] = best_model(
-        best_params,
-        train_features,
-        train_labels,
-        train_classes,
-        train_scores,
-        test_features,
-        test_labels,
-        test_classes,
-        kwargs,
-    )
-    logger.info(
-        f"&&& {kwargs.data.drug_name} - finished training/testing using best parameters combination "
-        f"with scores for sensitive cell line: "
-        f"{gcv_results['best_params_performance']['test_scores']['sensitivity']}&&&"
-    )
+    if not kwargs.training.test_average:
+        # train best model with the best parameters from cross validation
+        gcv_results["best_params_performance"] = best_model(
+            best_params,
+            train_features,
+            train_labels,
+            train_classes,
+            train_scores,
+            test_features,
+            test_labels,
+            test_classes,
+            kwargs,
+        )
+        logger.info(
+            f"&&& {kwargs.data.drug_name} - finished training/testing using best parameters combination "
+            f"with scores for sensitive cell line: "
+            f"{gcv_results['best_params_performance']['test_scores']['sensitivity']}&&&"
+        )
     return gcv_results

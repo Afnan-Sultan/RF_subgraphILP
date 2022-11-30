@@ -41,10 +41,13 @@ def filter_drugs(kwargs: Kwargs):
 
         drug_subset = kwargs.data.drug_subset
         if drug_subset is not None:
-            if kwargs.data.include_subset:
-                to_upload = [drug for drug in to_upload if drug in drug_subset]
+            if isinstance(drug_subset, int):
+                to_upload = to_upload[:drug_subset]
             else:
-                to_upload = [drug for drug in to_upload if drug not in drug_subset]
+                if kwargs.data.include_subset:
+                    to_upload = [drug for drug in to_upload if drug in drug_subset]
+                else:
+                    to_upload = [drug for drug in to_upload if drug not in drug_subset]
 
         for drug_name in tqdm(
             to_upload,

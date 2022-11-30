@@ -28,6 +28,20 @@ def train(
     # parse the configuration file
     kwargs = Kwargs.parse_file(kwargs_file)
 
+    print(
+        f"Regression: {kwargs.training.regression}\n"
+        f"Biased: {kwargs.training.bias_rf}\n"
+        f"Targeted: {kwargs.training.target_root_node}\n"
+        f"SAURON: {kwargs.training.sauron}\n"
+        f"Weighted Features: {kwargs.training.weight_features}"
+    )
+
+    if kwargs.training.sauron:
+        assert kwargs.training.regression
+
+    if kwargs.training.bias_rf:
+        assert "original" not in kwargs.model.model_names
+
     # output the configuration in the results' folder for reference
     with open(os.path.join(kwargs.results_dir, "config.json"), "w") as config_file:
         config_file.write(json.dumps(json.loads(open(kwargs_file).read()), indent=4))
@@ -89,5 +103,5 @@ def train(
 
 
 if __name__ == "__main__":
-    train("config.json")
+    # train("config.json")
     app()

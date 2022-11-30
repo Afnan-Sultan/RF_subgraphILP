@@ -2,6 +2,8 @@ import json
 import logging
 import os
 
+import pandas as pd
+
 from manager.config import Kwargs
 from manager.data.data_split import split_data
 from manager.training.grid_search_cv import grid_search_cv
@@ -33,6 +35,13 @@ def train_models(drug_name: str, drug_info: dict, kwargs: Kwargs):
     for specified_model in kwargs.model.model_names:
         kwargs.model.current_model = specified_model
 
+        train_features = splits["train"]["data"]
+        train_classes = splits["train"]["classes"]
+        train_scores = splits["train"]["scores"]
+        test_features = splits["test"]["data"]
+        test_classes = splits["test"]["classes"]
+        test_scores = splits["test"]["scores"]
+
         if kwargs.training.regression:  # set labels to the ic-50 scores
             train_labels = splits["train"]["scores"]
             test_labels = splits["test"]["scores"]
@@ -40,18 +49,25 @@ def train_models(drug_name: str, drug_info: dict, kwargs: Kwargs):
             train_labels = splits["train"]["classes"]
             test_labels = splits["test"]["classes"]
 
+        if kwargs.training.test_average:
+            train_features = pd.concat([train_features, test_features])
+            train_labels = pd.concat([train_labels, test_labels])
+            train_classes = pd.concat([train_classes, test_classes])
+            train_scores = pd.concat([train_scores, test_scores])
+            test_features = test_labels = None
+
         if kwargs.training.grid_search:
             logger.info(
                 f"=== Starting grid search cross validation for {drug_name} using {specified_model.upper()} model ==="
             )
             all_models[specified_model] = grid_search_cv(
-                train_features=splits["train"]["data"],
+                train_features=train_features,
                 train_labels=train_labels,
-                train_classes=splits["train"]["classes"],
-                train_scores=splits["train"]["scores"],
-                test_features=splits["test"]["data"],
+                train_classes=train_classes,
+                train_scores=train_scores,
+                test_features=test_features,
                 test_labels=test_labels,
-                test_classes=splits["test"]["classes"],
+                test_classes=test_classes,
                 kwargs=kwargs,
             )
         else:
@@ -59,13 +75,13 @@ def train_models(drug_name: str, drug_info: dict, kwargs: Kwargs):
             for idx, rf_params in kwargs.training.parameters_grid.items():
                 all_models[specified_model][idx] = best_model(
                     rf_params,
-                    train_features=splits["train"]["data"],
+                    train_features=train_features,
                     train_labels=train_labels,
-                    train_classes=splits["train"]["classes"],
-                    train_scores=splits["train"]["scores"],
-                    test_features=splits["test"]["data"],
+                    train_classes=train_classes,
+                    train_scores=train_scores,
+                    test_features=test_features,
                     test_labels=test_labels,
-                    test_classes=splits["test"]["classes"],
+                    test_classes=test_classes,
                     kwargs=kwargs,
                 )
 

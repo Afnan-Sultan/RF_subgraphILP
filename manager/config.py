@@ -71,6 +71,7 @@ class TrainingConfig(BaseModel):
         return grid
 
     grid_search: bool = True
+    test_average: bool = False
     drugs_n_jobs: int = 1
 
     # cross validation parameters
@@ -244,6 +245,10 @@ class Kwargs(BaseModel):
     @cached_property
     def from_disk(self) -> bool:
         if len(os.listdir(self.matrices_output_dir)) > 0:
+            for drug_folder in os.listdir(self.matrices_output_dir):
+                files = os.listdir(os.path.join(self.matrices_output_dir, drug_folder))
+                if "gene_mat.txt" not in files or "meta.txt" not in files:
+                    return False
             return True
         else:
             return False

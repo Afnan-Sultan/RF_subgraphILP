@@ -12,8 +12,8 @@
   * `manger/models` contains the code to implement the random forest modifications
     * The main project ideas are implemented in `manager/models/utils/biased_random_forest.py`
   * `manger/training` contains the code for training (e.g., parameter grid search, cross validation, ...etc.)
-  * `manager/plots` contains the code to generate analysis plots (e.g., performance, runtime, splits, ...etc.)
-  * `manager/supplementary` contains the codes used to generate stats/figures outside the results folder
+  * `manager/visualization/plot_results_analysis` contains the code to generate analysis plots (e.g., performance, runtime, splits, ...etc.)
+  * `manager/visualization/databases_distribution` contains the codes used to generate stats/figures outside the results folder
   * `manager/train.py` is the script called for training with and without grid search cross validation
   * `manager/config.py` includes the different parameters used for training
 
