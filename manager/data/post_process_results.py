@@ -53,12 +53,27 @@ def read_results_file(input_file):
     return drugs_dict
 
 
-def fetch_models(
+def get_num_features(file):
+    file_path = os.path.dirname(file)
+    num_features_file = os.path.join(file_path, "num_features.json")
+    num_features = None
+    if os.path.isfile(num_features_file):
+        num_features = []
+        with open(num_features_file, "r", encoding="utf-8") as f:
+            json_data = re.sub(r"}\s*{", "},{", f.read())
+            num_features.extend(json.loads("[" + json_data + "]"))
+        num_features = num_features[0]
+    return num_features
+
+
+def rename_models(
     drugs_dict, drug, models, prefix, suffix, file, models_to_compare=None
 ):
     """
     rename models with proper prefix and suffix according to the file name (train configuration)
     """
+
+    num_features = get_num_features(file)
     for model, results in models.items():
         if models_to_compare is not None and model not in models_to_compare:
             continue
@@ -74,6 +89,40 @@ def fetch_models(
             new_name = f"{prefix}subILP{suffix}"
         else:
             new_name = f"{prefix}{model}{suffix}"
+
+        if num_features is not None and model != "parameters_grid":
+            # invoked for the averaged results which mistakenly didn't include detailed num_features
+            if model in num_features[drug]:
+                results["parameters_combo_cv_results"]["0"]["stats"][
+                    "num_features"
+                ] = num_features[drug][model]["num_features"]
+                results["parameters_combo_cv_results"]["0"]["stats"][
+                    "num_features_overall"
+                ] = num_features[drug][model]["num_features_overall"]
+            else:
+                if "random" in model:
+                    curr_num_features = 0
+                else:
+                    features_lists = literal_eval(
+                        results["parameters_combo_cv_results"]["0"][
+                            "important_features"
+                        ]
+                    )
+                    num_features_list = []
+                    for features_list in features_lists:
+                        df = pd.DataFrame(
+                            features_list["data"],
+                            columns=features_list["columns"],
+                            index=features_list["index"],
+                        )
+                        num_features_list.append(len(df.index))
+                    curr_num_features = sum(num_features_list) / len(features_lists)
+                results["parameters_combo_cv_results"]["0"]["stats"][
+                    "num_features"
+                ] = curr_num_features
+                results["parameters_combo_cv_results"]["0"]["stats"][
+                    "num_features_overall"
+                ] = curr_num_features
 
         if drug in drugs_dict:
             if new_name in drugs_dict[drug] and drugs_dict[drug][new_name] != results:
@@ -159,10 +208,10 @@ def aggregate_result_files(results_path, condition, targeted=False, all_features
 
         for drug, models in result_dict.items():
             if targeted and drug not in drugs_with_targets:
+                # update drugs_dict with only drugs that have targets
                 continue
 
-            # update drugs_dict with only drugs that have targets
-            fetch_models(
+            rename_models(
                 drugs_dict,
                 drug,
                 models,
@@ -284,7 +333,15 @@ def best_model_per_drug(
         best_model = None
         won_by_series = []
         for model in best_models:
-            model_features = final_models_num_features[drug][model]
+            if (
+                len(
+                    final_models_num_features[list(final_models_num_features.keys())[0]]
+                )
+                > 0
+            ):
+                model_features = final_models_num_features[drug][model]
+            else:
+                model_features = 0
             model_runtime = runtimes.loc[drug, model]
             if model_features < 0.95 * min_features:
                 won_by_series.append([f"{best_model} --> {model}", "by_num_features"])
@@ -383,7 +440,41 @@ def postprocessing(
                     continue
                 drug_info[drug][rf_model] = {}
 
-                best_model = results["best_params_performance"]
+                # process file based on whether cv was used as average results or parameter tuning
+                if "best_params_performance" in results:
+                    best_model = results["best_params_performance"]
+                else:
+                    stats = results["parameters_combo_cv_results"]["0"]["stats"]
+
+                    if regression:
+                        suffix = "mean_mse"
+                    else:
+                        suffix = "mean"
+
+                    imp = None
+                    if "random" not in rf_model:
+                        imp = stats["important_features"]
+
+                    # "params" key should be fixed in analysis to one grid only
+                    best_model = {
+                        "params": rf_models["parameters_grid"]["0"],
+                        "train_runtime": stats["train_time_mean"],
+                        "test_runtime": stats["test_time_mean"],
+                        "model_runtime": stats["train_time_mean"]
+                        + stats["test_time_mean"],
+                        "test_scores": {
+                            metric: stats[f"{metric}_{suffix}"] for metric in metrics
+                        },
+                        "features_importance": imp,
+                    }
+                    if "num_features" in stats:
+                        best_model["num_features_overall"] = stats[
+                            "num_features_overall"
+                        ]
+                        best_model["num_features"] = stats["num_features"]
+                    else:
+                        best_model["num_features_overall"] = 0
+                        best_model["num_features"] = 0
 
                 # region final model accuracies
                 ranked_scores = results["rank_params_scores"]
@@ -431,6 +522,7 @@ def postprocessing(
                 drug_info[drug][rf_model]["avg_num_features_per_tree"] = best_model[
                     "num_features"
                 ]
+
                 if "random" not in rf_model and not all_features:
                     dict_info = literal_eval(best_model["features_importance"])
                     final_models_best_features[drug][rf_model] = pd.DataFrame(
@@ -679,33 +771,26 @@ def process_trees_info(rf_trees_file):
         json_data = re.sub(r"}\s*{", "},{", f.read())
         trees_json.extend(json.loads("[" + json_data + "]"))
 
-    # fetch each tree index and information
-    trees_info = {}
+    features_importance = pd.DataFrame()
     for tree in trees_json:
-        for tree_idx, info in tree.items():  # one element loop
-            trees_info[tree_idx] = {
-                "cell_lines": info["cell_lines"],
-                "features": info["features"],
-                "features_importance": info["features_importance"],
-            }
+        tree_index = list(tree.keys())[0]
+        tree_info = tree[tree_index]
+        tree_df = pd.DataFrame(
+            {f"features_importance_{tree_index}": tree_info["features_importance"]},
+            index=tree_info["features"],
+        )
+        features_importance = pd.concat([features_importance, tree_df], axis=1)
 
-    used_features_count = {}
-    used_features_importance = {}
-    for tree_info in trees_info.values():
-        for idx, feature in enumerate(tree_info["features"]):
-            if feature in used_features_count:
-                used_features_count[feature] += 1
-                used_features_importance[feature].append(
-                    tree_info["features_importance"][idx]
-                )
-            else:
-                used_features_count[feature] = 1
-                used_features_importance[feature] = [
-                    tree_info["features_importance"][idx]
-                ]
+    num_trees_features = features_importance.count().to_list()
+    features_stats = {
+        "num_features_overall": len(features_importance.index),
+        "num_trees_features": num_trees_features,
+        "num_features": int(mean(num_trees_features)),
+    }
 
-    # used_features = pd.DataFrame(used_features).transpose()
-    return used_features_count, used_features_importance
+    used_features_count = features_importance.count(axis=1)
+    used_features_importance = features_importance.mean(axis=1)
+    return used_features_count, used_features_importance, features_stats
 
 
 def trees_summary(results_path, condition, all_features=False):
@@ -728,36 +813,70 @@ def trees_summary(results_path, condition, all_features=False):
             trees_folder = os.path.join(folder, drug_name)
             for model_trees in os.listdir(trees_folder):
                 model = model_trees.split(".")[0]
+                if model[-1].isnumeric():
+                    model = model[:-2]
+                    trees_files = [
+                        os.path.join(trees_folder, m)
+                        for m in os.listdir(trees_folder)
+                        if m.startswith(model)
+                    ]
+                else:
+                    trees_files = os.path.join(trees_folder, model_trees)
+
                 if model == "random":
                     continue
-                trees_file = os.path.join(trees_folder, model_trees)
-                if not all_features and "original" in trees_file:
+
+                if not all_features and "original" in trees_files:
                     continue
-                features_dist, importance = process_trees_info(trees_file)
+
+                if isinstance(trees_files, list):
+                    all_dist, all_importance = pd.DataFrame(), pd.DataFrame()
+                    stats = {}
+                    for tree_file in trees_files:
+                        features_dist, importance, stat = process_trees_info(tree_file)
+                        all_dist = pd.concat([all_dist, features_dist], axis=1)
+                        all_importance = pd.concat([all_importance, importance], axis=1)
+                        for k, v in stat.items():
+                            if k in stats:
+                                stats[k].append(v)
+                            else:
+                                stats[k] = [v]
+
+                    features_dist = all_dist.mean(axis=1).astype(int)
+                    importance = all_importance.mean(axis=1)
+                    for k, v in stats.items():
+                        if isinstance(v, list) and not isinstance(v[0], list):
+                            stats[k] = int(mean(v))
+                else:
+                    features_dist, importance, stats = process_trees_info(trees_files)
+
                 to_dict = {
-                    "features_dist": pd.DataFrame(features_dist, index=["count"])
-                    .transpose()
-                    .sort_values(by="count", ascending=False)
+                    "features_dist": features_dist.sort_values(ascending=False)
                     .reset_index()
-                    .rename({"index": "GeneID"}),
+                    .rename({"index": "GeneID", 0: "count"}, axis=1),
                     "features_importance": importance,
+                    "stats": stats,
                 }
                 trees_features_summary[drug_name][model] = to_dict
                 trees_features_dist[drug_name][model] = to_dict["features_dist"][
                     "count"
                 ]
     models_features_imp = {}
+    stats_dict = trees_features_summary.copy()
     for drug, models in trees_features_summary.items():
         models_features_imp[drug] = pd.DataFrame()
         for model, info in models.items():
-            temp = {}
-            for feature, imp in info["features_importance"].items():
-                temp[feature] = mean(imp)
+            stats_dict[drug][model] = info["stats"]
             models_features_imp[drug] = pd.concat(
                 [
                     models_features_imp[drug],
-                    pd.DataFrame(temp, index=[model]).transpose(),
+                    pd.DataFrame({model: info["features_importance"]}),
                 ],
                 axis=1,
             )
+
+    with open(
+        os.path.join(os.path.dirname(trees_folders[0]), "num_features.json"), "w"
+    ) as stats_file:
+        stats_file.write(json.dumps(stats_dict, indent=2))
     return trees_features_dist, trees_features_summary, models_features_imp

@@ -8,6 +8,7 @@ from manager.data.post_process_results import (
 )
 from manager.visualization.plot_results_analysis.plot_results import (
     plot_accuracies,
+    plot_averaged,
     plot_splits,
     plot_trees_dist,
 )
@@ -38,23 +39,25 @@ col_map = {
 }
 
 if __name__ == "__main__":
-    results_path = "../../../results_larger"
-    output_path = "../../../figures_v3"
+    # results_path = "../../../results_larger"
+    results_path = "../../../results_average_test"
+    output_path = "../../../figures_v4"
 
     # data uploading kwargs
     regression = True
-    targeted = False
+    targeted = True
     weighted = True
     simple_weight = True
+    averaged_results = True
     original = False
-    get_trees_info = True
+    get_trees_info = False
     n_features = 20
 
     # plot kwargs
-    runtime = False
+    accuracies = True
     per_drug = False
-    accuracies = False
     final = False
+    runtime = False
     best_models_count = False
     trees_features = False
     splits = False
@@ -64,11 +67,11 @@ if __name__ == "__main__":
         "rf_vs_subilp": False,
         "with_sauron": False,
         "targeted": False,
-        "data_vs_prior": False,
+        "data_vs_prior": True,
         "without_bias": False,
         "without_synergy": False,
         "num_features": False,
-        "all": True,
+        "all": False,
     }
 
     if weighted and simple_weight:
@@ -95,12 +98,12 @@ if __name__ == "__main__":
 
     if regression:
         metrics_ = {
-            "overall": "MSE - Overall",
-            "sensitivity": "MSE - Sensitive",
-            "specificity": "MSE - Resistant",
+            "overall": "$MSE$",
+            "sensitivity": "$MSE_{sens}$",
+            "specificity": "$MSE_{res}$",
         }
         thresh = 0.1
-        title = f"MSE Scores"
+        title = f"Regression Performance"
         arranged_metrics = ["sensitivity", "specificity", "overall"]
     else:
         thresh = 0.01
@@ -112,7 +115,7 @@ if __name__ == "__main__":
             "mcc": "MCC",  # "Matthews Correlation Coefficient",
         }
         arranged_metrics = ["sensitivity", "specificity", "mcc"]
-        title = "Classification metrics"
+        title = "Classification Performance"
 
     if not regression:
         analysis["with_sauron"] = False
@@ -136,7 +139,7 @@ if __name__ == "__main__":
         elif key == "with_sauron" and val:
             assert regression
             title = f"{title} - SAURON"
-            fig_name, fig_width = f"with_sauron_{condition}", 15
+            fig_name, fig_width = f"with_sauron_{condition}", 17
             specific_models = [
                 "rf",
                 "subILP_bias",
@@ -167,11 +170,12 @@ if __name__ == "__main__":
                     "targeted_subILP_bias",
                 ]
         elif key == "data_vs_prior" and val:
-            title = f"{title} - Methods Comparison"
             if targeted:
-                title = f"{title} - Targeted subgraphILP - Methods Comparison"
+                title = f"Targeted {title} - Methods Comparison"
+            else:
+                title = f"{title} - Methods Comparison"
             if regression:
-                fig_name, fig_width = f"data_vs_prior_{condition}", 17
+                fig_name, fig_width = f"data_vs_prior_{condition}", 20
                 specific_models = [
                     "rf",
                     "subILP_bias",
@@ -184,7 +188,7 @@ if __name__ == "__main__":
                     "corr_thresh_bias_sauron",
                 ]
                 if targeted:
-                    fig_name, fig_width = f"targeted_data_vs_prior_{condition}", 19
+                    fig_name, fig_width = f"targeted_data_vs_prior_{condition}", 22.5
                     specific_models.extend(
                         [
                             "targeted_subILP_bias_sauron",
@@ -205,7 +209,7 @@ if __name__ == "__main__":
                     specific_models.append("targeted_subILP_bias")
         elif key == "num_features" and val:
             fig_height = 7
-            fig_name, fig_width = f"num_features", 15
+            fig_name, fig_width = f"num_features", 13
             specific_models = [
                 "subILP_bias",
                 "corr_num_bias",
@@ -217,7 +221,7 @@ if __name__ == "__main__":
             title = f"{title} - Bias Ablation"
             if targeted:
                 title = f"{title} - Targeted subgraphILP - Bias Ablation"
-            fig_name, fig_width = f"without_bias_{condition}", 17
+            fig_name, fig_width = f"without_bias_{condition}", 20
             if regression:
                 specific_models = [
                     "random",
@@ -261,7 +265,7 @@ if __name__ == "__main__":
             title = f"{title} - Synergy Ablation"
             if targeted:
                 title = f"{title} - Targeted subgraphILP - Synergy Ablation"
-            fig_name, fig_width = f"without_synergy_{condition}", 17
+            fig_name, fig_width = f"without_synergy_{condition}", 20
             specific_models = [
                 "subILP_bias",
                 "subILP_sauron",
@@ -304,15 +308,23 @@ if __name__ == "__main__":
                     "corr_thresh_bias_sauron",
                 ]
                 if targeted:
-                    fig_name, fig_width = f"performance_{condition}", 29
-                    specific_models.extend(
-                        [
-                            "targeted_subILP_bias_sauron",
-                            "targeted_subILP_sauron",
-                            "targeted_subILP_bias",
-                            "targeted_subILP",
-                        ]
-                    )
+                    fig_width = 29
+                    if regression:
+                        specific_models.extend(
+                            [
+                                "targeted_subILP_bias_sauron",
+                                "targeted_subILP_sauron",
+                                "targeted_subILP_bias",
+                                "targeted_subILP",
+                            ]
+                        )
+                    else:
+                        specific_models.extend(
+                            [
+                                "targeted_subILP_bias",
+                                "targeted_subILP",
+                            ]
+                        )
             else:
                 fig_name, fig_width = f"performance_{condition}", 17
                 specific_models = [
@@ -398,27 +410,56 @@ if __name__ == "__main__":
                 to_arrange = final_models_acc
             final_models_acc_arranged = {m: to_arrange[m] for m in arranged_metrics}
 
-            plot_accuracies(
-                models_acc=final_models_acc_arranged,
-                output_cv=True,
-                title=title,
-                subtitles=["Test Score", "CV Score"],
-                fig_name=fig_name,
-                metrics=list(final_models_acc_arranged.keys()),
-                col_map=col_map,
-                to_rename=metrics_,
-                output_dir=output_dir_,
-                regression=regression,
-                fig_ncols=2,
-                sharey="row",
-                figsize=(fig_width, fig_height),
-                showfliers=False,
-                legend_ncol=1,
-                legened_pos_right=0.22,
-                change_right_by=0.2,
-                row_title_xpos=0.2,
-                row_title_ypos=-0.4,
-            )
+            if averaged_results:
+                for metric in final_models_acc_arranged:
+                    final_models_acc_arranged[metric] = final_models_acc_arranged[
+                        metric
+                    ]["test_score"]
+                plot_averaged(
+                    final_models_acc_arranged,
+                    metric_best_models_count,
+                    title,
+                    fig_name,
+                    col_map,
+                    output_dir_,
+                    metrics_,
+                    list(final_models_acc_arranged.keys()),
+                    regression=regression,
+                    figsize=(fig_width, fig_height),
+                    showfliers=False,
+                    legend_ncol=1,
+                    wspace=0.2,
+                    hspace=0.2,
+                    row_title_xpos=0.15,
+                    row_title_ypos=0.45,
+                    fontsize=18,
+                    legened_pos_right=0.21,
+                    change_right_by=0.12,
+                    change_bottom_by=0.0,
+                    ax_text_rot=0,
+                )
+            else:
+                plot_accuracies(
+                    models_acc=final_models_acc_arranged,
+                    output_cv=True,
+                    title=title,
+                    subtitles=["Test Score", "CV Score"],
+                    fig_name=fig_name,
+                    metrics=list(final_models_acc_arranged.keys()),
+                    col_map=col_map,
+                    to_rename=metrics_,
+                    output_dir=output_dir_,
+                    regression=regression,
+                    fig_ncols=2,
+                    sharey="row",
+                    figsize=(fig_width, fig_height),
+                    showfliers=False,
+                    legend_ncol=1,
+                    legened_pos_right=0.22,
+                    change_right_by=0.2,
+                    row_title_xpos=0.2,
+                    row_title_ypos=-0.4,
+                )
 
         if best_models_count:
             plot_accuracies(
@@ -468,10 +509,6 @@ if __name__ == "__main__":
                 legend_ncol=1,
                 legened_pos_right=0.22,
                 change_right_by=0.2,
-                row_title_xpos=row_title_xpos,  # 0.5, 0.45
-                row_title_ypos=0,
-                ax_text_rot=0,
-                wspace=0.2,
             )
         if per_drug:
             print(os.path.join(per_drug_dir, key))
@@ -520,7 +557,7 @@ if __name__ == "__main__":
                     "rf_test_runtime",
                 ],
                 col_map=col_map,
-                to_rename=to_rename,
+                to_rename=metrics_,
                 bar=False,
                 output_dir=output_dir_,
                 regression=None,

@@ -63,6 +63,12 @@ def splits_stats(
     ACCs_stats["test_time_median"] = statistics.median(test_runtime)
     ACCs_stats["test_time_mean"] = statistics.mean(test_runtime)
     ACCs_stats["test_time_std"] = statistics.stdev(test_runtime)
+
+    ACCs_stats["num_features_overall"] = statistics.mean(
+        model_results["num_features_overall"]
+    )
+    ACCs_stats["num_features"] = statistics.mean(model_results["num_features"])
+
     return ACCs_stats
 
 
@@ -142,12 +148,18 @@ def cross_validation(
                 cv_results["important_features"].append(sorted_features)
             cv_results["train_runtime"].append(fit_runtime)
             cv_results["test_runtime"].append(test_runtime)
+            cv_results["num_features_overall"].append(num_features_overall)
+            cv_results["num_features"].append(num_features),
+            cv_results["num_tress_features"].append(num_trees_features)
             for subset, acc_score in acc.items():
                 cv_results[f"ACCs_{subset}"].append(acc_score)
         else:
             cv_results = {
                 "train_runtime": [fit_runtime],
                 "test_runtime": [test_runtime],
+                "num_features_overall": [num_features_overall],
+                "num_features": [num_features],
+                "num_tress_features": [num_trees_features],
                 "important_features": None  # features not reported for the random model
                 if sorted_features is None
                 else [sorted_features],

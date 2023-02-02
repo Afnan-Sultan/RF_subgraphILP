@@ -125,6 +125,123 @@ def plot_columns(
     return legends_box, legends_label, col_order
 
 
+def plot_averaged(
+    acc_dict,
+    by_count_dict,
+    title,
+    fig_name,
+    col_map,
+    output_dir,
+    to_rename,
+    metrics,
+    showfliers=False,
+    regression=None,
+    figsize=(10, 10),
+    fontsize=16,
+    hspace=0.1,
+    wspace=0.1,
+    legend_ncol=1,
+    legened_pos_right=0.0,
+    change_bottom_by=0.0,
+    change_right_by=0.0,
+    row_title_xpos=0.0,
+    row_title_ypos=0.0,
+    ax_text_rot=90,
+):
+    fig_ncols = 2
+    fig_nrows = len(metrics)
+    fig, axes = plt.subplots(fig_nrows, fig_ncols, figsize=figsize, sharey=False)
+    plt.suptitle(title, fontsize=fontsize + 4)
+    # adjust figure's layout. shrinkage of borders is for the legend sake.
+    bottom_loc = fig.subplotpars.bottom
+    right_loc = fig.subplotpars.right
+    plt.subplots_adjust(
+        right=right_loc - (change_right_by * right_loc),
+        bottom=bottom_loc - (change_bottom_by * bottom_loc),
+        hspace=hspace,
+        wspace=wspace,
+    )
+    # bottom_loc = fig.subplotpars.bottom
+    # left_loc = fig.subplotpars.left
+    right_loc = fig.subplotpars.right
+    top_loc = fig.subplotpars.top
+
+    ascending = True if regression else False
+    col_order = None
+    legends_box = None
+    legends_label = None
+    for row_idx, metric in enumerate(metrics):
+        acc_df = acc_dict[metric].abs().round(2)
+        if col_order is None:
+            col_order, legends_label = sort_models(
+                acc_df, ascending, False, legends_label
+            )
+        # specify a color for each model from a predefined dictionary map
+        colors = [col_map[model] for model in col_order]
+
+        acc_df = acc_df.loc[:, col_order]
+        ax = axes[row_idx, 0]
+        ax.axes.xaxis.set_visible(False)
+        if row_idx == 0:
+            ax.set_title("Average test scores", fontsize=fontsize)
+        if regression:
+            ax.set_ylabel("MSE scores")
+        bplot = ax.boxplot(
+            acc_df.values,
+            showfliers=showfliers,
+            showmeans=True,
+            patch_artist=True,
+        )
+        models_plots = bplot["boxes"]
+        for patch, color in zip(models_plots, colors):
+            patch.set_facecolor(color)
+
+        ylim = ax.get_ylim()
+        y = ylim[1] - (row_title_ypos * ylim[1])
+        xlim = ax.get_xlim()
+        x = xlim[0] - (row_title_xpos * xlim[1])
+        ax.text(
+            x=x,
+            y=y,
+            s=to_rename[metric],
+            rotation=ax_text_rot,
+            fontsize=fontsize,
+            horizontalalignment="right",
+            verticalalignment="center",
+            # transform=ax.transAxes,
+        )
+
+        # store each boxplot object to be for legend retrieval
+        if legends_box is None:
+            legends_box = [models_plots[idx] for idx in range(len(models_plots))]
+            legends_box.extend([bplot["means"][0], bplot["medians"][0]])
+
+        by_count_df = by_count_dict[metric].loc[col_order]["test_score"]
+        ax = axes[row_idx, 1]
+        ax.axes.xaxis.set_visible(False)
+        if row_idx == 0:
+            ax.set_title("Performance by drug count", fontsize=fontsize)
+        ax.set_ylabel("Number of drugs")
+        bplot = ax.bar(by_count_df.index.to_list(), by_count_df.values)
+        models_plots = bplot
+        for patch, color in zip(models_plots, colors):
+            patch.set_facecolor(color)
+
+    # add the legend retrieved from the first subplot (the names and colors are preserved for the remaining subplots)
+    right_loc = fig.subplotpars.right
+    top_loc = fig.subplotpars.top
+    plt.legend(
+        legends_box,
+        legends_label,
+        fontsize=fontsize,
+        bbox_to_anchor=(right_loc + legened_pos_right, top_loc),
+        ncols=legend_ncol,
+        bbox_transform=fig.transFigure,
+    )
+    plt.savefig(os.path.join(output_dir, f"{fig_name}.png"))  # , format="svg"
+    plt.close()
+
+
 def plot_accuracies(
     models_acc,
     title,
@@ -162,10 +279,10 @@ def plot_accuracies(
 
     # initialize a figure
     if single_level_df:
-        if not final:
-            fig_nrows = len(metrics)
         # should be invoked when plotting runtimes
         fig_nrows = ceil(len(metrics) / fig_ncols)
+        if not final:
+            fig_nrows = len(metrics)
     elif multi_level_df:
         fig_nrows = 1
     else:
