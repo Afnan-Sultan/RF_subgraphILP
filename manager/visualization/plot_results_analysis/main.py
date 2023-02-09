@@ -45,7 +45,7 @@ if __name__ == "__main__":
 
     # data uploading kwargs
     regression = True
-    targeted = True
+    targeted = False
     weighted = True
     simple_weight = True
     averaged_results = True
@@ -67,9 +67,9 @@ if __name__ == "__main__":
         "rf_vs_subilp": False,
         "with_sauron": False,
         "targeted": False,
-        "data_vs_prior": True,
+        "data_vs_prior": False,
         "without_bias": False,
-        "without_synergy": False,
+        "without_synergy": True,
         "num_features": False,
         "all": False,
     }

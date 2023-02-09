@@ -18,7 +18,6 @@ from warnings import catch_warnings, simplefilter, warn
 
 import numpy as np
 import pandas as pd
-from joblib import Parallel
 from manager.config import Kwargs
 from manager.models.biased_decision_tree import (
     BiasedDecisionTreeClassifier,
@@ -41,8 +40,8 @@ from sklearn.exceptions import DataConversionWarning
 from sklearn.tree._classes import DOUBLE, DTYPE
 from sklearn.tree._tree import issparse
 from sklearn.utils import check_random_state, compute_sample_weight
-from sklearn.utils.fixes import delayed
 from sklearn.utils.multiclass import type_of_target
+from sklearn.utils.parallel import Parallel, delayed
 from sklearn.utils.validation import _check_sample_weight, check_is_fitted
 
 
@@ -72,7 +71,7 @@ class BiasedRandomForestRegressor(ForestRegressor):
         max_samples=None,
     ):
         super().__init__(
-            base_estimator=BiasedDecisionTreeRegressor(
+            estimator=BiasedDecisionTreeRegressor(
                 max_depth=max_depth,
                 min_samples_split=min_samples_split,
                 min_samples_leaf=min_samples_leaf,
@@ -190,7 +189,7 @@ class BiasedRandomForestClassifier(ForestClassifier):
         max_samples=None,
     ):
         super().__init__(
-            base_estimator=BiasedDecisionTreeClassifier(
+            estimator=BiasedDecisionTreeClassifier(
                 max_depth=max_depth,
                 min_samples_split=min_samples_split,
                 min_samples_leaf=min_samples_leaf,

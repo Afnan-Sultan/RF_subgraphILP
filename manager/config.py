@@ -42,8 +42,6 @@ class TrainingConfig(BaseModel):
                 self.max_features = ["sqrt"]
         elif isinstance(self.max_features, str) or isinstance(self.max_features, float):
             self.max_features = [self.max_features]
-        elif isinstance(self.max_features, list):
-            self.max_features = [float(n) if "." in n else n for n in self.max_features]
 
         if not self.min_samples_leaf:
             self.min_samples_leaf = [15]
