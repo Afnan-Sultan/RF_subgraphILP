@@ -1,10 +1,13 @@
+import json
 import logging
+import os
 import statistics
 from math import ceil
 
 import pandas as pd
 from manager.config import Kwargs
 from manager.training.random_forest import which_rf
+from manager.utils import NewJsonEncoder
 from sklearn.model_selection import StratifiedKFold
 
 logger = logging.getLogger(__name__)
@@ -100,6 +103,8 @@ def cross_validation(
     cv_results = {}
     k = 0  # cross validation counter
     num_features_per_cv = []
+    selected_feature_only = set()
+    num_features_only = []
     for train_index, test_index in cv.split(train_features, train_classes):
         kwargs.training.cv_idx = k  # globalize as it will be used for naming
 
@@ -133,6 +138,11 @@ def cross_validation(
             test_classes=cv_test_classes,
             kwargs=kwargs,
         )
+        if kwargs.training.get_features_only:
+            selected_feature_only.update(sorted_features)
+            num_features_only.append(num_features_overall)
+            continue
+
         num_features_per_cv.append(num_features)
 
         if sorted_features is not None:
@@ -173,6 +183,12 @@ def cross_validation(
             )
         k += 1
     kwargs.training.cv_idx = None
+
+    if kwargs.training.get_features_only:
+        return {
+            "features": selected_feature_only,
+            "num_features": int(statistics.mean(num_features_only)),
+        }
 
     cv_results["stats"] = splits_stats(
         cv_results,

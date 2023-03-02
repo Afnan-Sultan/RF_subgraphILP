@@ -15,6 +15,8 @@ class TrainingConfig(BaseModel):
         arbitrary_types_allowed = True
         keep_untouched = (cached_property,)
 
+    get_features_only: bool = False
+
     # subgraphilp parameters
     mapper_path: Optional[str]  # path to mapper.exe
     comp_path: Optional[str]  # path to compOpt.exe

@@ -264,7 +264,16 @@ def which_rf(
         to_rf = feature_selection(
             train_features, train_classes, train_scores, kwargs, test_features
         )
-
+        if kwargs.training.get_features_only:
+            return (
+                None,
+                None,
+                None,
+                to_rf["features"],
+                len(to_rf["features"]),
+                None,
+                None,
+            )
         if model == "random":
             fit_runtime, test_runtime, acc = get_rand_rf_results(
                 rf_params=rf_params,

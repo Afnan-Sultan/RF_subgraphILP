@@ -72,7 +72,7 @@ def differential_expression(
     sample_var = sample.var(axis=1)
 
     if de_method == "fc":
-        fc = ref_mean / sample_mean
+        fc = np.log2(ref_mean) - np.log2(sample_mean)
         output_file = os.path.join(output_dir, "fold_change.txt")
         fc.to_csv(output_file, sep="\t", header=False)
     else:

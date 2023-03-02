@@ -1,140 +1,21 @@
 import json
-import math
 import os
 import re
 import warnings
 from ast import literal_eval
-from math import inf
 from statistics import mean
 
 import pandas as pd
+from manager.utils import NewJsonEncoder
+from manager.visualization.plot_results_analysis.plot_results import (
+    plot_common_features_mat,
+)
+from tqdm import tqdm
 
 
-def serialize_dict(multi_level_dict, levels_to_index):
-    """
-    convert multi-key dictionary (json) to multilevel dataframe
-    """
-    df = pd.json_normalize(multi_level_dict)
-    df.columns = df.columns.str.split(".").map(tuple)
-    df = df.stack(levels_to_index).reset_index(0, drop=True)
-    return df
-
-
-def read_results_file(input_file):
-    """
-    store the contest of the jsonl results file into a dictionary
-    """
-    drugs_dict = {}
-    with open(input_file, "r", encoding="utf-8") as file:
-        json_data = re.sub(r"}\s*{", "},{", file.read())  # when json file is indented
-        for drug in json.loads("[" + json_data + "]"):
-            for drug_name, results in drug.items():
-                if drug_name in drugs_dict:
-                    # If the same configuration is used with different models, the results is appended to the same
-                    # results file. Hence, repeated drugs with different results can be present.
-                    for model, scores in results.items():
-                        if model not in drugs_dict[drug_name]:
-                            drugs_dict[drug_name][model] = scores
-                        elif (
-                            model in drugs_dict[drug_name]
-                            and model == "parameters_grid"
-                        ):
-                            if drugs_dict[drug_name][model] != scores:
-                                warnings.warn(
-                                    f"Parameters grid is repeated with different configuration for {drug_name}. "
-                                    f"This might lead to faulty analysis"
-                                )
-                        else:
-                            warnings.warn(
-                                f"{model} for {drug_name} is already present. The second occurrence is skipped"
-                            )
-                else:
-                    drugs_dict[drug_name] = results
-    return drugs_dict
-
-
-def get_num_features(file):
-    file_path = os.path.dirname(file)
-    num_features_file = os.path.join(file_path, "num_features.json")
-    num_features = None
-    if os.path.isfile(num_features_file):
-        num_features = []
-        with open(num_features_file, "r", encoding="utf-8") as f:
-            json_data = re.sub(r"}\s*{", "},{", f.read())
-            num_features.extend(json.loads("[" + json_data + "]"))
-        num_features = num_features[0]
-    return num_features
-
-
-def rename_models(
-    drugs_dict, drug, models, prefix, suffix, file, models_to_compare=None
+def aggregate_result_files(
+    results_path, condition, averaged_results=True, targeted=False, all_features=False
 ):
-    """
-    rename models with proper prefix and suffix according to the file name (train configuration)
-    """
-
-    num_features = get_num_features(file)
-    for model, results in models.items():
-        if models_to_compare is not None and model not in models_to_compare:
-            continue
-
-        if model == "parameters_grid":
-            new_name = "parameters_grid"
-        elif model == "original":
-            if "sauron" in file:
-                new_name = f"{prefix}rf_sauron"
-            else:
-                new_name = f"{prefix}rf"
-        elif model == "subgraphilp":
-            new_name = f"{prefix}subILP{suffix}"
-        else:
-            new_name = f"{prefix}{model}{suffix}"
-
-        if num_features is not None and model != "parameters_grid":
-            # invoked for the averaged results which mistakenly didn't include detailed num_features
-            if model in num_features[drug]:
-                results["parameters_combo_cv_results"]["0"]["stats"][
-                    "num_features"
-                ] = num_features[drug][model]["num_features"]
-                results["parameters_combo_cv_results"]["0"]["stats"][
-                    "num_features_overall"
-                ] = num_features[drug][model]["num_features_overall"]
-            else:
-                if "random" in model:
-                    curr_num_features = 0
-                else:
-                    features_lists = literal_eval(
-                        results["parameters_combo_cv_results"]["0"][
-                            "important_features"
-                        ]
-                    )
-                    num_features_list = []
-                    for features_list in features_lists:
-                        df = pd.DataFrame(
-                            features_list["data"],
-                            columns=features_list["columns"],
-                            index=features_list["index"],
-                        )
-                        num_features_list.append(len(df.index))
-                    curr_num_features = sum(num_features_list) / len(features_lists)
-                results["parameters_combo_cv_results"]["0"]["stats"][
-                    "num_features"
-                ] = curr_num_features
-                results["parameters_combo_cv_results"]["0"]["stats"][
-                    "num_features_overall"
-                ] = curr_num_features
-
-        if drug in drugs_dict:
-            if new_name in drugs_dict[drug] and drugs_dict[drug][new_name] != results:
-                warnings.warn(
-                    f"{new_name} already exists with different values. Second instance is used. {file}"
-                )
-            drugs_dict[drug][new_name] = results
-        else:
-            drugs_dict[drug] = {new_name: results}
-
-
-def aggregate_result_files(results_path, condition, targeted=False, all_features=False):
     """
     different configurations are run in parallel for speed. this function aggregates all results in one dictionary
     """
@@ -147,7 +28,9 @@ def aggregate_result_files(results_path, condition, targeted=False, all_features
         os.path.join(folder, file)
         for folder in results_folders
         for file in os.listdir(folder)
-        if os.path.isfile(os.path.join(folder, file)) and file.endswith("jsonl")
+        if os.path.isfile(os.path.join(folder, file))
+        and file.endswith("jsonl")
+        and "features" not in file
     ]
 
     not_to_include = None
@@ -177,33 +60,12 @@ def aggregate_result_files(results_path, condition, targeted=False, all_features
         models_to_compare = original_dd[list(original_dd.keys())[0]].keys()
 
     for file in results_files:
-        if "original" in file:
-            if all_features:
-                prefix0 = "all_"
-            else:
-                continue
-        else:
-            prefix0 = ""
-        if "targeted" in file:
-            if targeted:
-                prefix1 = "targeted_"
-            else:
-                continue
-        else:
-            prefix1 = ""
-        prefix = f"{prefix0}{prefix1}"
+        if "original" in file and not all_features:
+            continue
+        if "targeted" in file and not targeted:
+            continue
 
-        if "biased" in file:
-            suffix1 = "_bias"
-        else:
-            suffix1 = ""
-        if "sauron" in file:
-            suffix2 = "_sauron"
-        else:
-            suffix2 = ""
-        suffix = f"{suffix1}{suffix2}"
-
-        result_dict = read_results_file(file)
+        result_dict = read_results_file(file, averaged_results)
         print(file, len(result_dict.keys()))  # TODO: remove
 
         for drug, models in result_dict.items():
@@ -215,8 +77,6 @@ def aggregate_result_files(results_path, condition, targeted=False, all_features
                 drugs_dict,
                 drug,
                 models,
-                prefix,
-                suffix,
                 file,
                 models_to_compare=models_to_compare,
             )
@@ -229,154 +89,342 @@ def aggregate_result_files(results_path, condition, targeted=False, all_features
     return drugs_dict
 
 
+def read_results_file(input_file, averaged_results=True):
+    """
+    store the contest of the jsonl results file into a dictionary
+    """
+    drugs_dict = {}
+    num_features = get_num_features(input_file)
+    computed_num_features = {}
+    with open(input_file, "r", encoding="utf-8") as file:
+        json_data = re.sub(r"}\s*{", "},{", file.read())  # when json file is indented
+        json_list = json.loads("[" + json_data + "]")
+
+        output_dir = os.path.dirname(input_file)
+        output_file = os.path.join(output_dir, "computed_num_features.json")
+        for drug in json_list:
+            for drug_name, results in drug.items():
+                if drug_name not in computed_num_features:
+                    computed_num_features[drug_name] = {}
+                if averaged_results:
+                    for model in results.keys():
+                        if model != "parameters_grid":
+                            computed_num_features[drug_name][model] = {}
+
+                            # used for the models which wrongly didn't include num_features info
+                            comp_num_features(
+                                drug_name,
+                                model,
+                                results,
+                                num_features,
+                                computed_num_features,
+                            )
+                if drug_name in drugs_dict:
+                    # If the same configuration is used with different models, the results is appended to the same
+                    # results file. Hence, repeated drugs with different results can be present.
+                    for model, scores in results.items():
+                        if model not in drugs_dict[drug_name]:
+                            drugs_dict[drug_name][model] = scores
+                        elif (
+                            model in drugs_dict[drug_name]
+                            and model == "parameters_grid"
+                        ):
+                            if drugs_dict[drug_name][model] != scores:
+                                warnings.warn(
+                                    f"Parameters grid is repeated with different configuration for {drug_name}. "
+                                    f"This might lead to faulty analysis"
+                                )
+                        else:
+                            warnings.warn(
+                                f"{model} for {drug_name} is already present. The second occurrence is skipped"
+                            )
+                else:
+                    drugs_dict[drug_name] = results
+        if not os.path.isfile(output_file):
+            with open(output_file, "w") as out_json:
+                out_json.write(json.dumps(computed_num_features, indent=2))
+    return drugs_dict
+
+
+def get_num_features(file):
+    file_path = os.path.dirname(file)
+    num_features_file1 = os.path.join(file_path, "num_features.json")
+    num_features_file2 = os.path.join(file_path, "computed_num_features.json")
+    num_features = None
+    if os.path.isfile(num_features_file2):
+        num_features = []
+        with open(num_features_file2, "r", encoding="utf-8") as f:
+            json_data = re.sub(r"}\s*{", "},{", f.read())
+            num_features.extend(json.loads("[" + json_data + "]"))
+        num_features = num_features[0]
+    elif os.path.isfile(num_features_file1):
+        num_features = []
+        with open(num_features_file1, "r", encoding="utf-8") as f:
+            json_data = re.sub(r"}\s*{", "},{", f.read())
+            num_features.extend(json.loads("[" + json_data + "]"))
+        num_features = num_features[0]
+    return num_features
+
+
+def comp_num_features(drug, model, results, num_features, computed_num_features):
+    """
+    invoked for the averaged results which mistakenly didn't include detailed num_features
+    """
+    stats = results[model]["parameters_combo_cv_results"]["0"]["stats"]
+    cv_idx = results[model]["parameters_combo_cv_results"]["0"]
+    if num_features is not None and model in num_features[drug]:
+        stats["num_features"] = num_features[drug][model]["num_features"]
+        stats["num_features_overall"] = num_features[drug][model][
+            "num_features_overall"
+        ]
+        computed_num_features[drug][model]["num_features"] = num_features[drug][model][
+            "num_features"
+        ]
+        computed_num_features[drug][model]["num_features_overall"] = num_features[drug][
+            model
+        ]["num_features_overall"]
+    elif "num_features" not in stats:
+        if "random" in model:
+            curr_num_features = 0
+        else:
+            features_lists = [literal_eval(fl) for fl in cv_idx["important_features"]]
+            num_features_list = []
+            for features_list in features_lists:
+                df = pd.DataFrame(
+                    features_list["data"],
+                    columns=features_list["columns"],
+                    index=features_list["index"],
+                )
+                num_features_list.append(len(df.index))
+            curr_num_features = int(sum(num_features_list) / len(features_lists))
+        stats["num_features"] = curr_num_features
+        stats["num_features_overall"] = curr_num_features
+        computed_num_features[drug][model]["num_features"] = curr_num_features
+        computed_num_features[drug][model]["num_features_overall"] = curr_num_features
+    else:
+        computed_num_features[drug][model]["num_features"] = stats["num_features"]
+        computed_num_features[drug][model]["num_features_overall"] = stats[
+            "num_features_overall"
+        ]
+    results[model]["parameters_combo_cv_results"]["0"]["stats"] = stats
+
+
+def rename_models(drugs_dict, drug, models, file, models_to_compare=None):
+    """
+    rename models with proper prefix and suffix according to the file name (train configuration)
+    """
+    if "original" in file:
+        prefix0 = "all_"
+    else:
+        prefix0 = ""
+    if "targeted" in file:
+        prefix1 = "targeted_"
+    else:
+        prefix1 = ""
+    prefix = f"{prefix0}{prefix1}"
+
+    if "biased" in file:
+        suffix1 = "_bias"
+    else:
+        suffix1 = ""
+    if "sauron" in file:
+        suffix2 = "_sauron"
+    else:
+        suffix2 = ""
+    if "gcv" in file:
+        suffix3 = "_tuned"
+    else:
+        suffix3 = ""
+    suffix = f"{suffix1}{suffix2}{suffix3}"
+
+    for model, results in models.items():
+        if models_to_compare is not None and model not in models_to_compare:
+            continue
+
+        if model == "parameters_grid":
+            new_name = "parameters_grid"
+        elif model == "original":
+            if "sauron" in file:
+                new_name = f"{prefix}rf_sauron"
+            else:
+                new_name = f"{prefix}rf"
+        elif model == "subgraphilp":
+            new_name = f"{prefix}subILP{suffix}"
+        else:
+            new_name = f"{prefix}{model}{suffix}"
+
+        if drug in drugs_dict:
+            if new_name in drugs_dict[drug] and drugs_dict[drug][new_name] != results:
+                warnings.warn(
+                    f"{new_name} already exists with different values. Second instance is used. {file}"
+                )
+            drugs_dict[drug][new_name] = results
+        else:
+            drugs_dict[drug] = {new_name: results}
+
+
 def add_best_model(
+    models_count,
     all_models,
     models_performance,
-    best_model,
     drug,
-    best_by,
     best_models,
-    drug_df,
-    second_best,
 ):
+    for model in best_models:
+        if model in models_count:
+            models_count[model] += 1
+        else:
+            models_count[model] = 1
+
     for model in all_models:
         if model in models_performance:
-            if model == best_model:
-                models_performance[model][drug] = best_by
-            elif model in best_models:
-                models_performance[model][drug] = abs(drug_df[model] - second_best)
+            if model in best_models:
+                models_performance[model][drug] = 1
             else:
-                models_performance[model][drug] = -1
+                models_performance[model][drug] = 0
         else:
-            if model == best_model:
-                models_performance[model] = {drug: best_by}
-            elif model in best_models:
-                models_performance[model] = {drug: abs(drug_df[model] - second_best)}
+            if model in best_models:
+                models_performance[model] = {drug: 1}
             else:
-                models_performance[model] = {drug: -1}
+                models_performance[model] = {drug: 0}
+
+
+def one_se_error(df, minimize=False):
+    df_sem = df.sem()
+    if minimize:
+        best_score = df.min()
+        acc_diff = df - best_score
+    else:
+        best_score = df.max()
+        acc_diff = best_score - df
+    best_models = acc_diff[acc_diff.values <= df_sem].index.to_list()
+    return best_models
 
 
 def best_model_per_drug(
-    test_scores, final_models_num_features, runtimes, regression, thresh
+    test_scores,
+    final_models_num_features,
+    runtimes,
+    regression,
+    use_num_features=False,
+    use_runtime=False,
 ):
     """
     Determine the best performing model for each drug according to each metric (e.g., sensitivity/specificity).
 
-    The scores are rounded to second decimal to avoid wining over miniscule difference. Also, a model is considered
-    amongst best models only if the difference in performance is higher than a threshold compared with the second model.
-    If this difference didn't exist, the second-best models are considered best models as well and the comparison keeps
-    moving on until the difference is realized.
-
-    A tie is broken to favor the simpler model represented by lower number of features, then by lower runtime.
-    In case the random model was one of the best models, all other models are ignored with the assumption that a random
-    model is the simplest model possible.
+    The one Standard Error (1se) rule is used to determine the models within on3 standard error form from the best
+    performing model. A tie can be broke by repeating the 1se over the number of features by selecting the models
+    within 1se from the minimum number of features. A further tie can be broken by runtime 1se.
     """
     models_performance = {}
     all_models = None
-    drug_won_by = {}
     models_count = {}
+    filter_summary = pd.DataFrame()
     for drug in test_scores.index.to_list():
-        drug_df = test_scores.loc[drug].round(2)
+        to_csv = pd.DataFrame()
+        drug_df = test_scores.loc[drug].round(2).abs()
         if all_models is None:
+            # retrieve the tested models
             all_models = drug_df.index.to_list()
 
-        temp = drug_df.copy(deep=True).abs()
-        best_by = None
-        best_scores = set()
-        second_best = 0
-        for ctr in range(len(drug_df.unique())):
-            if regression:
-                best_score = temp.min()
-                second_best = temp[temp.values != best_score].min()
-                best_by = second_best - best_score
-            else:
-                best_score = temp.max()
-                second_best = temp[temp.values != best_score].max()
-                best_by = best_score - second_best
-
-            if best_by >= thresh:
-                best_scores.add(best_score)
-                break
-            elif math.isnan(second_best):
-                if not len(best_scores) > 0:
-                    best_scores = set(drug_df.values)
-                second_best = min(best_scores)
-                best_by = abs(max(best_scores) - min(best_scores))
-                break
-            else:
-                best_scores.update([best_score, second_best])
-                temp = temp[temp.values != second_best]
-        best_models = drug_df[drug_df.isin(best_scores)].index.to_list()
+        if regression:
+            best_models = one_se_error(drug_df, minimize=True)
+        else:
+            best_models = one_se_error(drug_df, minimize=False)
+        to_csv = pd.concat([to_csv, drug_df.loc[best_models].rename("acc")], axis=1)
 
         # if the random model is among the best models, halt analysis for current drug
         if any(["random" in model for model in best_models]):
-            drug_won_by[drug] = ["by_random"]
-            best_model = [model for model in best_models if "random" in model][0]
-            if best_model in models_count:
-                models_count[best_model] += 1
-            else:
-                models_count[best_model] = 1
+            best_models = [model for model in best_models if "random" in model]
             add_best_model(
+                models_count,
                 all_models,
                 models_performance,
-                best_model,
                 drug,
-                best_by,
                 best_models,
-                drug_df,
-                second_best,
             )
             continue
 
-        min_features = inf
-        min_runtime = inf
-        best_model = None
-        won_by_series = []
-        for model in best_models:
-            if (
-                len(
-                    final_models_num_features[list(final_models_num_features.keys())[0]]
+        # break ties by number of features and runtime
+        if len(best_models) > 1:
+            models_num_features = pd.Series(final_models_num_features[drug])
+            best_num_features = models_num_features.loc[best_models]
+            temp_best_models = one_se_error(best_num_features, minimize=True)
+            to_csv = pd.concat(
+                [
+                    to_csv,
+                    best_num_features.loc[temp_best_models].rename("num_features"),
+                ],
+                axis=1,
+            )
+            if use_num_features:
+                best_models = temp_best_models
+
+            if len(best_models) > 1:
+                best_runtimes = runtimes.loc[drug, temp_best_models]
+                temp_best_models = one_se_error(best_runtimes, minimize=True)
+                to_csv = pd.concat(
+                    [to_csv, best_runtimes.loc[temp_best_models].rename("runtime")],
+                    axis=1,
                 )
-                > 0
-            ):
-                model_features = final_models_num_features[drug][model]
-            else:
-                model_features = 0
-            model_runtime = runtimes.loc[drug, model]
-            if model_features < 0.95 * min_features:
-                won_by_series.append([f"{best_model} --> {model}", "by_num_features"])
-                min_features = model_features
-                min_runtime = model_runtime
-                best_model = model
-            elif model_features == min_features and model_runtime < 0.95 * min_runtime:
-                won_by_series.append([f"{best_model} --> {model}", "by_runtime"])
-                min_features = model_features
-                min_runtime = model_runtime
-                best_model = model
-        drug_won_by[drug] = won_by_series
-        if best_model in models_count:
-            models_count[best_model] += 1
-        else:
-            models_count[best_model] = 1
+                if use_runtime:
+                    best_models = temp_best_models
+        if len(to_csv) > 0:
+            filter_summary = pd.concat(
+                [filter_summary, pd.concat([to_csv], keys=[drug])]
+            )
+        # increment the model count for the best models and store the current drug for these models
         add_best_model(
+            models_count,
             all_models,
             models_performance,
-            best_model,
             drug,
-            best_by,
             best_models,
-            drug_df,
-            second_best,
         )
+
+    # assign count = 0 for the models that didn't do well on any drug
     for model in all_models:
         if model not in models_performance:
             models_performance[model] = {
-                drug: -1 for drug in test_scores.index.to_list()
+                drug: 0 for drug in test_scores.index.to_list()
             }
         if model not in models_count:
             models_count[model] = 0
     models_count = pd.DataFrame(models_count, index=["count"]).transpose().squeeze()
-    return models_performance, models_count, drug_won_by
+    return models_performance, models_count, filter_summary
+
+
+def get_best_model(results, regression, rf_models, rf_model, metrics):
+    if "best_params_performance" in results:
+        best_model = results["best_params_performance"]
+    else:
+        stats = results["parameters_combo_cv_results"]["0"]["stats"]
+
+        if regression:
+            suffix = "mean_mse"
+        else:
+            suffix = "mean"
+
+        imp = None
+        if "random" not in rf_model:
+            imp = stats["important_features"]
+
+        # "params" key should be fixed in analysis to one grid only
+        best_model = {
+            "params": rf_models["parameters_grid"]["0"],
+            "train_runtime": stats["train_time_mean"],
+            "test_runtime": stats["test_time_mean"],
+            "model_runtime": stats["train_time_mean"] + stats["test_time_mean"],
+            "test_scores": {metric: stats[f"{metric}_{suffix}"] for metric in metrics},
+            "features_importance": imp,
+        }
+        if "num_features" in stats:
+            best_model["num_features_overall"] = stats["num_features_overall"]
+            best_model["num_features"] = stats["num_features"]
+        else:
+            best_model["num_features_overall"] = 0
+            best_model["num_features"] = 0
+    return best_model
 
 
 def postprocessing(
@@ -385,40 +433,46 @@ def postprocessing(
     targeted,
     regression,
     metrics,
-    thresh,
+    averaged_results=False,
     specific_models=None,
     all_features=False,
     params_acc_stat="mean",
+    output_dir=None,
+    csv_name=None,
 ):
     drugs_dict = aggregate_result_files(
-        results_path, condition, targeted, all_features=all_features
+        results_path=results_path,
+        condition=condition,
+        targeted=targeted,
+        averaged_results=averaged_results,
+        all_features=all_features,
     )
 
     runtimes = {}
+    drug_info = {}
     final_models_parameters = {}
     final_models_num_unique_features = {}
     final_models_avg_num_features = {}
     final_models_best_features = {}
-    drug_info = {}
+    cross_validation_splits_acc = {}
 
     final_models_acc = {}
     parameters_grid_acc = {}
     parameters_grid_acc_per_drug = {}
-    cross_validation_splits_acc = {}
     for metric in metrics:
         final_models_acc[metric] = {}
         parameters_grid_acc[metric] = {}
         parameters_grid_acc_per_drug[metric] = {}
 
     parameters_grid = None
-    for drug, rf_models in drugs_dict.items():
+    for drug, rf_models in tqdm(drugs_dict.items(), desc="post-processing results..."):
         runtimes[drug] = {}
+        drug_info[drug] = {}
         final_models_parameters[drug] = {}
         final_models_num_unique_features[drug] = {}
         final_models_avg_num_features[drug] = {}
         final_models_best_features[drug] = {}
         cross_validation_splits_acc[drug] = {}
-        drug_info[drug] = {}
         for metric in metrics:
             final_models_acc[metric][drug] = {}
             parameters_grid_acc[metric][drug] = {}
@@ -441,40 +495,9 @@ def postprocessing(
                 drug_info[drug][rf_model] = {}
 
                 # process file based on whether cv was used as average results or parameter tuning
-                if "best_params_performance" in results:
-                    best_model = results["best_params_performance"]
-                else:
-                    stats = results["parameters_combo_cv_results"]["0"]["stats"]
-
-                    if regression:
-                        suffix = "mean_mse"
-                    else:
-                        suffix = "mean"
-
-                    imp = None
-                    if "random" not in rf_model:
-                        imp = stats["important_features"]
-
-                    # "params" key should be fixed in analysis to one grid only
-                    best_model = {
-                        "params": rf_models["parameters_grid"]["0"],
-                        "train_runtime": stats["train_time_mean"],
-                        "test_runtime": stats["test_time_mean"],
-                        "model_runtime": stats["train_time_mean"]
-                        + stats["test_time_mean"],
-                        "test_scores": {
-                            metric: stats[f"{metric}_{suffix}"] for metric in metrics
-                        },
-                        "features_importance": imp,
-                    }
-                    if "num_features" in stats:
-                        best_model["num_features_overall"] = stats[
-                            "num_features_overall"
-                        ]
-                        best_model["num_features"] = stats["num_features"]
-                    else:
-                        best_model["num_features_overall"] = 0
-                        best_model["num_features"] = 0
+                best_model = get_best_model(
+                    results, regression, rf_models, rf_model, metrics
+                )
 
                 # region final model accuracies
                 ranked_scores = results["rank_params_scores"]
@@ -557,7 +580,7 @@ def postprocessing(
                                     f"split_{cv_idx}"
                                 ].append(cv_acc)
                             else:
-                                cross_validation_splits_acc[drug][metric][rf_model][
+                                cross_validation_splits_acc[drug][rf_model][metric][
                                     f"split_{cv_idx}"
                                 ] = [cv_acc]
                 if len(parameters_grid) == 1:
@@ -635,11 +658,10 @@ def postprocessing(
     )
 
     test_metric_best_models = {}
-    test_metric_best_models_detailed = {}
     test_metric_best_models_count = {}
     cv_metric_best_models = {}
-    cv_metric_best_models_detailed = {}
     cv_metric_best_models_count = {}
+    models_filter_summary = pd.DataFrame()
     for metric in metrics:
         final_models_acc[metric] = serialize_dict(
             final_models_acc[metric], 0
@@ -661,29 +683,35 @@ def postprocessing(
         (
             test_metric_best_models[metric],
             test_metric_best_models_count[metric],
-            test_metric_best_models_detailed[metric],
+            filter_summary,
         ) = best_model_per_drug(
             final_models_acc[metric]["test_score"],
             final_models_num_unique_features,
             runtimes["gcv_runtime"],
             regression,
-            thresh,
         )
+        if output_dir is not None:
+            assert csv_name is not None
+            models_filter_summary = pd.concat(
+                [models_filter_summary, pd.concat([filter_summary], keys=[metric])]
+            )
+            models_filter_summary.to_csv(
+                os.path.join(output_dir, f"{csv_name}_models_filter_summary.csv")
+            )
+
         (
             cv_metric_best_models[metric],
             cv_metric_best_models_count[metric],
-            cv_metric_best_models_detailed[metric],
+            _,
         ) = best_model_per_drug(
             final_models_acc[metric]["train_score"],
             final_models_num_unique_features,
             runtimes["gcv_runtime"],
             regression,
-            thresh,
         )
 
     metric_best_models_count = {}
     metric_best_models = {}
-    metric_best_models_detailed = {}
     for metric in test_metric_best_models_count:
         indices = test_metric_best_models_count[metric].index.to_list()
         metric_best_models_count[metric] = pd.DataFrame(
@@ -698,10 +726,6 @@ def postprocessing(
         metric_best_models[metric] = {
             "test_score": test_metric_best_models[metric],
             "train_score": cv_metric_best_models[metric],
-        }
-        metric_best_models_detailed[metric] = {
-            "test_score": test_metric_best_models_detailed[metric],
-            "train_score": cv_metric_best_models_detailed[metric],
         }
 
     drugs_acc = {}
@@ -723,13 +747,27 @@ def postprocessing(
         final_models_num_features,
         drug_info,
         metric_best_models,
-        metric_best_models_detailed,
         metric_best_models_count,
         parameters_grid_acc,
         parameters_grid_acc_per_drug,
         cross_validation_splits_acc,
         runtimes,
     )
+
+
+def recruit_drugs(metric_best_models):
+    recruited_drugs = {}
+    models_sens_performance = pd.DataFrame(
+        metric_best_models["sensitivity"]["test_score"]
+    )
+    for row in models_sens_performance.iterrows():
+        if row[1].sum() == 1:
+            model = row[1][row[1] == 1].index.to_list()[0]
+            if model in recruited_drugs:
+                recruited_drugs[model].append(row[0])
+            else:
+                recruited_drugs[model] = [row[0]]
+    return recruited_drugs
 
 
 def postprocess_final(results_file):
@@ -765,6 +803,16 @@ def postprocess_final(results_file):
     return scores_df
 
 
+def serialize_dict(multi_level_dict, levels_to_index):
+    """
+    convert multi-key dictionary (json) to multilevel dataframe
+    """
+    df = pd.json_normalize(multi_level_dict)
+    df.columns = df.columns.str.split(".").map(tuple)
+    df = df.stack(levels_to_index).reset_index(0, drop=True)
+    return df
+
+
 def process_trees_info(rf_trees_file):
     trees_json = []
     with open(rf_trees_file, "r", encoding="utf-8") as f:
@@ -793,28 +841,62 @@ def process_trees_info(rf_trees_file):
     return used_features_count, used_features_importance, features_stats
 
 
-def trees_summary(results_path, condition, all_features=False):
-    all_folders = [
-        os.path.join(results_path, folder)
-        for folder in os.listdir(results_path)
-        if condition in folder
-    ]
-    trees_folders = [
-        os.path.join(folder, "rf_trees_info")
-        for folder in all_folders
-        if os.path.isdir(os.path.join(folder, "rf_trees_info"))
-    ]
-    trees_features_summary = {}
+def read_trees_summary(summary_file):
     trees_features_dist = {}
-    for folder in trees_folders:
-        for drug_name in os.listdir(folder):
+    with open(summary_file, "r", encoding="utf-8") as file:
+        json_data = re.sub(r"}\s*{", "},{", file.read())
+        data = json.loads(json_data)
+        for drug, summary in data.items():
+            trees_features_dist[drug] = {}
+            for model, res in summary.items():
+                dist_dict = literal_eval(res["features_dist"])
+                data[drug][model]["features_dist"] = pd.DataFrame(
+                    dist_dict["data"],
+                    index=dist_dict["index"],
+                    columns=dist_dict["columns"],
+                )
+                trees_features_dist[drug][model] = data[drug][model]["features_dist"][
+                    "count"
+                ]
+
+                imp_dict = literal_eval(res["features_importance"].replace("null", "0"))
+                data[drug][model]["features_importance"] = pd.Series(
+                    imp_dict["data"], index=imp_dict["index"]
+                )
+    return data, trees_features_dist
+
+
+def read_trees_imp_file(imp_file):
+    with open(imp_file, "r", encoding="utf-8") as file:
+        json_data = re.sub(r"}\s*{", "},{", file.read())
+        data = json.loads(json_data)
+        for drug, df_str in data.items():
+            df_dict = literal_eval(df_str.replace("null", "111111"))
+            data[drug] = pd.DataFrame(
+                df_dict["data"], index=df_dict["index"], columns=df_dict["columns"]
+            ).replace({111111: None})
+    return data
+
+
+def trees_summary(trees_folder, all_features=False):
+    output_dir = os.path.dirname(trees_folder)
+    summary_file = os.path.join(output_dir, "trees_features_summary.json")
+    if os.path.isfile(summary_file):
+        trees_features_summary, trees_features_dist = read_trees_summary(summary_file)
+    else:
+        trees_features_dist = {}
+        trees_features_summary = {}
+        print(trees_folder, "This might take quite long...")
+        for drug_name in tqdm(
+            os.listdir(trees_folder), desc="Processing trees per drug ..."
+        ):
             trees_features_summary[drug_name] = {}
             trees_features_dist[drug_name] = {}
-            trees_folder = os.path.join(folder, drug_name)
+            trees_folder = os.path.join(trees_folder, drug_name)
             for model_trees in os.listdir(trees_folder):
                 model = model_trees.split(".")[0]
                 if model[-1].isnumeric():
-                    model = model[:-2]
+                    model = f"{model[:-2]}_bias"
                     trees_files = [
                         os.path.join(trees_folder, m)
                         for m in os.listdir(trees_folder)
@@ -836,17 +918,19 @@ def trees_summary(results_path, condition, all_features=False):
                         features_dist, importance, stat = process_trees_info(tree_file)
                         all_dist = pd.concat([all_dist, features_dist], axis=1)
                         all_importance = pd.concat([all_importance, importance], axis=1)
-                        for k, v in stat.items():
+                        for k, count in stat.items():
                             if k in stats:
-                                stats[k].append(v)
+                                stats[k].append(count)
                             else:
-                                stats[k] = [v]
+                                stats[k] = [count]
 
                     features_dist = all_dist.mean(axis=1).astype(int)
                     importance = all_importance.mean(axis=1)
-                    for k, v in stats.items():
-                        if isinstance(v, list) and not isinstance(v[0], list):
-                            stats[k] = int(mean(v))
+                    for k, count_list in stats.items():
+                        if isinstance(count_list, list) and not isinstance(
+                            count_list[0], list
+                        ):
+                            stats[k] = int(mean(count_list))
                 else:
                     features_dist, importance, stats = process_trees_info(trees_files)
 
@@ -861,22 +945,338 @@ def trees_summary(results_path, condition, all_features=False):
                 trees_features_dist[drug_name][model] = to_dict["features_dist"][
                     "count"
                 ]
-    models_features_imp = {}
-    stats_dict = trees_features_summary.copy()
-    for drug, models in trees_features_summary.items():
-        models_features_imp[drug] = pd.DataFrame()
-        for model, info in models.items():
-            stats_dict[drug][model] = info["stats"]
-            models_features_imp[drug] = pd.concat(
-                [
-                    models_features_imp[drug],
-                    pd.DataFrame({model: info["features_importance"]}),
-                ],
-                axis=1,
+        with open(
+            os.path.join(output_dir, "trees_features_dist.json"), "w"
+        ) as dist_file:
+            dist_file.write(
+                json.dumps(trees_features_dist, indent=2, cls=NewJsonEncoder)
+            )
+        with open(
+            os.path.join(output_dir, "trees_features_summary.json"), "w"
+        ) as summary_file:
+            summary_file.write(
+                json.dumps(trees_features_summary, indent=2, cls=NewJsonEncoder)
             )
 
-    with open(
-        os.path.join(os.path.dirname(trees_folders[0]), "num_features.json"), "w"
-    ) as stats_file:
-        stats_file.write(json.dumps(stats_dict, indent=2))
+    imp_file = os.path.join(output_dir, "models_features_imp.json")
+    if os.path.isfile(imp_file):
+        models_features_imp = read_trees_imp_file(imp_file)
+    else:
+        models_features_imp = {}
+        stats_dict = trees_features_summary.copy()
+        for drug, models in trees_features_summary.items():
+            models_features_imp[drug] = pd.DataFrame()
+            for model, info in models.items():
+                stats_dict[drug][model] = info["stats"]
+                models_features_imp[drug] = pd.concat(
+                    [
+                        models_features_imp[drug],
+                        pd.DataFrame({model: info["features_importance"]}),
+                    ],
+                    axis=1,
+                )
+        with open(
+            os.path.join(output_dir, "models_features_imp.json"), "w"
+        ) as imp_file:
+            imp_file.write(
+                json.dumps(models_features_imp, indent=2, cls=NewJsonEncoder)
+            )
+        with open(os.path.join(output_dir, "num_features.json"), "w") as stats_file:
+            stats_file.write(json.dumps(stats_dict, indent=2, cls=NewJsonEncoder))
     return trees_features_dist, trees_features_summary, models_features_imp
+
+
+def get_data_vs_prior_features_info(biased_file):
+    trees_features_summary, _ = read_trees_summary(biased_file)
+    features = {}
+    num_features = {}
+    for drug, models in trees_features_summary.items():
+        features[drug] = {}
+        num_features[drug] = {}
+        for model, info in models.items():
+            genes = info["features_dist"]["GeneID"].to_list()
+            genes = [int(g) for g in genes]
+            num_genes = info["stats"]["num_features_overall"]
+            if model == "subgraphilp":
+                features[drug]["subILP_bias"] = genes
+                num_features[drug]["subILP_bias"] = num_genes
+            else:
+                features[drug][f"{model}_bias"] = genes
+                num_features[drug][f"{model}_bias"] = num_genes
+    num_features = pd.DataFrame(num_features).transpose()
+    return features, num_features
+
+
+def comp_features_intersection(
+    models_features_importance,
+    models_to_compare,
+    n_features=None,
+    output_dir=None,
+    add_bias=False,
+    selected=False,
+):
+    features_intersection = {}
+    if isinstance(models_features_importance, list):
+        self_intersection = False
+        drugs_dict = models_features_importance[0]
+    else:
+        self_intersection = True
+        drugs_dict = models_features_importance
+    for drug, models in drugs_dict.items():
+        if selected or not self_intersection:
+            models_info = models
+            features_intersection[drug] = {
+                "common_features": {},
+                "num_common": {},
+            }
+        else:
+            models_info = {}
+            for model in models_to_compare:
+                temp = models[model].sort_values(ascending=False)[:n_features]
+                if model == "subgraphilp":
+                    model = "subILP"
+                if add_bias:
+                    model = f"{model}_bias"
+                models_info[model] = temp
+
+            features_intersection[drug] = {
+                f"best_{n_features}_features": models_info,
+                "common_features": {},
+                "num_common": {},
+            }
+        for model, info in models_info.items():
+            features_intersection[drug]["common_features"][model] = {}
+            features_intersection[drug]["num_common"][model] = {}
+            if self_intersection:
+                inner_info = models_info
+            else:
+                inner_info = models_features_importance[1][drug]
+            for model_again, info_again in inner_info.items():
+                if selected or not self_intersection:
+                    common_features = set(info).intersection(info_again)
+                    num_common = len(common_features)
+                else:
+                    common_features = set(info.index).intersection(info_again.index)
+                    num_common = len(common_features)
+
+                if (
+                    not selected
+                    and self_intersection
+                    and model == model_again
+                    and num_common != n_features
+                ):
+                    # For some drugs, the selected num feature for corr_thresh can be very low that not enough
+                    # {n_features} important features are present, which messes up the common_features_matrix.
+                    # In this situation, the intersection between the model and itself is set to {n_features} to ensure
+                    # logical matrix heatmap with unified diagonal colors.
+                    num_common = n_features
+
+                features_intersection[drug]["common_features"][model][
+                    model_again
+                ] = common_features
+                features_intersection[drug]["num_common"][model][
+                    model_again
+                ] = num_common
+        df = pd.DataFrame(features_intersection[drug]["num_common"])
+        if selected:
+            features_intersection[drug]["num_common"] = (
+                100 * (df / df.max(axis=1))
+            ).round(0)
+        else:
+            features_intersection[drug]["num_common"] = df
+
+    dfs = []
+    for drug, info in features_intersection.items():
+        dfs.append(info["num_common"])
+    dfs_concat = pd.concat(dfs)
+    dfs_concat.reset_index(inplace=True)
+    mean_concat = dfs_concat.groupby("index").mean()
+    features_intersection["Drugs' Average"] = {
+        "num_common": mean_concat.loc[mean_concat.columns]
+    }
+
+    if output_dir is not None:
+        with open(os.path.join(output_dir, "best_features.json"), "w") as features_file:
+            features_file.write(
+                json.dumps(features_intersection, indent=2, cls=NewJsonEncoder)
+            )
+    return features_intersection
+
+
+def compare_bias_ablation_features(
+    results_path,
+    corr_file,
+    subilp_file,
+    biased_file,
+    regression,
+    metrics,
+    condition,
+    targeted,
+    averaged_results,
+    all_features,
+    output_dir,
+):
+    drugs_dict = aggregate_result_files(
+        results_path=results_path,
+        condition=condition,
+        targeted=targeted,
+        averaged_results=averaged_results,
+        all_features=all_features,
+    )
+    most_important_features = {}
+    for drug, rf_models in drugs_dict.items():
+        most_important_features[drug] = {}
+        for rf_model, results in rf_models.items():
+            if rf_model in [
+                "subILP",
+                "subILP_bias",
+                "corr_num",
+                "corr_num_bias",
+                "corr_thresh",
+                "corr_thresh_bias",
+            ]:
+                best_model = get_best_model(
+                    results, regression, rf_models, rf_model, metrics
+                )
+                dict_info = literal_eval(best_model["features_importance"])
+                temp_df = pd.DataFrame(
+                    dict_info["data"],
+                    columns=dict_info["columns"],
+                    index=dict_info["index"],
+                )
+                most_important_features[drug][rf_model] = pd.Series(
+                    temp_df["feature_importance"].values, index=temp_df["GeneSymbol"]
+                )
+    with open(
+        os.path.join(output_dir, "bias_ablation_important_features.json"), "w"
+    ) as features_file:
+        features_file.write(
+            json.dumps(most_important_features, indent=2, cls=NewJsonEncoder)
+        )
+    features, num_features = get_bias_ablation_features_info(
+        corr_file, subilp_file, biased_file
+    )
+    num_features = pd.DataFrame(num_features).transpose()
+    return features, num_features, most_important_features
+
+
+def get_bias_ablation_features_info(corr_file, subilp_file, biased_file):
+    trees_features_summary, _ = read_trees_summary(biased_file)
+    with open(subilp_file, "r", encoding="utf-8") as file:
+        json_data = re.sub(r"}\s*{", "},{", file.read())
+        subilp_info = json.loads(json_data)
+    with open(corr_file, "r", encoding="utf-8") as file:
+        json_data = re.sub(r"}\s*{", "},{", file.read())
+        json_list = json.loads("[" + json_data + "]")
+        corr_info = {}
+        for entry in json_list:
+            for drug, model in entry.items():
+                if drug not in corr_info:
+                    corr_info[drug] = {}
+                for model_name, info in model.items():
+                    corr_info[drug][model_name] = info
+
+    features = {}
+    num_features = {}
+    for drug, models in trees_features_summary.items():
+        features[drug] = {}
+        num_features[drug] = {}
+        for model, info in models.items():
+            genes = info["features_dist"]["GeneID"].to_list()
+            genes = [int(g) for g in genes]
+            num_genes = info["stats"]["num_features_overall"]
+            if model == "subgraphilp":
+                features[drug]["subILP"] = subilp_info[drug]["features"]
+                num_features[drug]["subILP"] = subilp_info[drug]["num_features"]
+
+                features[drug]["subILP_bias"] = genes
+                num_features[drug]["subILP_bias"] = num_genes
+            else:
+                features[drug][model] = corr_info[drug][model]["features"]
+                num_features[drug][model] = corr_info[drug][model]["num_features"]
+
+                features[drug][f"{model}_bias"] = genes
+                num_features[drug][f"{model}_bias"] = num_genes
+    return features, num_features
+
+
+def read_ablation_imp_file(imp_file):
+    with open(imp_file, "r", encoding="utf-8") as file:
+        json_data = re.sub(r"}\s*{", "},{", file.read())
+        data = json.loads(json_data)
+        imp_dict = {}
+        for drug, info_dict in data.items():
+            imp_dict[drug] = {}
+            if drug == "Drugs' Average":
+                continue
+            for model, series_str in info_dict["best_100_features"].items():
+                df_dict = literal_eval(series_str.replace("null", "111111"))
+                imp_dict[drug][model] = df_dict["index"]
+    return imp_dict
+
+
+def common_imp_feat_regression_n_classification(
+    regression_file, classification_file, ablation
+):
+    if ablation:
+        regression_features = read_ablation_imp_file(regression_file)
+        classification_features = read_ablation_imp_file(classification_file)
+    else:
+        regression_imp = read_trees_imp_file(regression_file)
+        classification_imp = read_trees_imp_file(classification_file)
+        regression_features = {}
+        classification_features = {}
+        for drug, regression_df in regression_imp.items():
+            classify_df = classification_imp[drug]
+            regression_features[drug] = {}
+            classification_features[drug] = {}
+            for model in regression_df.columns:
+                if model == "subgraphilp":
+                    renamed_model = "subILP_bias"
+                else:
+                    renamed_model = f"{model}_bias"
+                regress_features = (
+                    regression_df[model].sort_values().index.to_list()[:100]
+                )
+                classify_features = (
+                    classify_df[model].sort_values().index.to_list()[:100]
+                )
+                regression_features[drug][renamed_model] = regress_features
+                classification_features[drug][renamed_model] = classify_features
+
+    models = list(regression_features[list(regression_features.keys())[0]].keys())
+    important_features_intersection = comp_features_intersection(
+        [regression_features, classification_features], models_to_compare=models
+    )
+    return important_features_intersection
+
+
+if __name__ == "__main__":
+    ablation = True
+    if ablation:
+        classification_file = (
+            "../../figures_v4/weighted/classification/not_targeted/best_features.json"
+        )
+        regression_file = (
+            "../../figures_v4/weighted/regression/not_targeted/best_features.json"
+        )
+        name = "Regression and Classification - Bias Ablation"
+    else:
+        classification_file = "../../results_average_test/classification_weighted_biased_gt_750/models_features_imp.json"
+        regression_file = "../../results_average_test/regression_weighted_biased_gt_750/models_features_imp.json"
+        name = "Regression and Classification - Prior knowledge VS statistical"
+
+    imp_features_intersections = common_imp_feat_regression_n_classification(
+        regression_file, classification_file, ablation=ablation
+    )
+    df = imp_features_intersections["Drugs' Average"]["num_common"]
+    drug = "Drugs' Average"
+    plot_dir = "../../figures_v4"
+    plot_common_features_mat(
+        df,
+        drug,
+        plot_dir,
+        figsize=(10, 10),
+        name=name,
+        title_pos=0.95,
+    )

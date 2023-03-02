@@ -84,7 +84,8 @@ def train_models(drug_name: str, drug_info: dict, kwargs: Kwargs):
                     test_classes=test_classes,
                     kwargs=kwargs,
                 )
-
+    if kwargs.training.get_features_only:
+        return None
     not_to_analyse = kwargs.data.not_to_analyse
     if len(not_to_analyse) > 0:
         if len(not_to_analyse) > 0:

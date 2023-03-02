@@ -1,10 +1,13 @@
+import json
 import logging
+import os
 import time
 
 import pandas as pd
 from manager.config import Kwargs
 from manager.training.cross_validation import cross_validation, get_rand_cv_results
 from manager.training.train_best_parameters import best_model
+from manager.utils import NewJsonEncoder
 
 logger = logging.getLogger(__name__)
 
@@ -33,7 +36,6 @@ def subsets_means(
 
 
 def rank_parameters(parameters_grid, gcv_results, params_mean_perf, kwargs):
-
     # rank the mean performance for each parameter per subset (subsets = {overall, sensitive, resistant} if regression
     # or subsets = {sensitivity, specificity, f1. ...etc.} if classification)
     rank_params = {}
@@ -88,6 +90,7 @@ def grid_search_cv(
     start = time.time()
     gcv_results = {}
     params_mean_perf = {}
+    features_info_only = {kwargs.data.drug_name: {}}
     for idx, rf_params in parameters_grid.items():
         if out_log:
             logger.info(
@@ -115,6 +118,11 @@ def grid_search_cv(
                 kwargs=kwargs,
                 out_log=out_log,
             )
+
+        if kwargs.training.get_features_only:
+            features_info_only[kwargs.data.drug_name][model] = cv_results
+            continue
+
         if "parameters_combo_cv_results" in gcv_results:
             gcv_results["parameters_combo_cv_results"][idx] = cv_results
         else:
@@ -129,6 +137,15 @@ def grid_search_cv(
             idx,
         )
     kwargs.training.gcv_idx = None
+
+    if kwargs.training.get_features_only:
+        with open(
+            os.path.join(kwargs.results_dir, "initial_features_info.jsonl"), "a"
+        ) as temp_file:
+            temp_file.write(
+                json.dumps(features_info_only, indent=2, cls=NewJsonEncoder)
+            )
+        return None
 
     # update gcv_results with parameters rank and retrieve the best parameters (based on sensitive cell lines scores)
     best_params = rank_parameters(
