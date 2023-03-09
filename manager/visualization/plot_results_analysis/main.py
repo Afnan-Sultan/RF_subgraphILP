@@ -27,13 +27,13 @@ from manager.visualization.plot_results_analysis.variables import (
 from tqdm import tqdm
 
 if __name__ == "__main__":
-    # results_path = "../../../results_average_test"
-    results_path = "../../../results_cv"
-    # output_path = "../../../figures_v4"
-    output_path = "../../../figures/cv"
+    results_path = "../../../results_average_test"
+    # results_path = "../../../results_cv"
+    output_path = "../../../figures"
+    # output_path = "../../../figures/cv"
 
     # data uploading kwargs
-    regression = True
+    regression = False
     targeted = False
     weighted = True
     simple_weight = True
@@ -45,9 +45,9 @@ if __name__ == "__main__":
 
     # postprocessing kwargs
     get_trees_info = False
+    compare_bias_ablation = False
     get_features_intersection = False
     n_features = 100
-    compare_bias_ablation = False
 
     # plot kwargs
     accuracies = False
@@ -56,20 +56,20 @@ if __name__ == "__main__":
     runtime = True
     best_models_count = False
     plot_features_dist = False
-    splits = False
+    splits = True
     num_features = False
     plot_intersection_matrix = False
-    plot_parameters_performance = True
+    plot_parameters_performance = False
 
     analysis = {
         "rf_vs_subilp": 0,
         "with_sauron": 0,
         "targeted": 0,
-        "data_vs_prior": 0,
+        "data_vs_prior": 1,
         "without_bias": 0,
         "without_synergy": 0,
         "num_features": 0,
-        "all": 1,
+        "all": 0,
     }
 
     condition, output_dir, per_drug_dir = output_mkdir(
@@ -362,7 +362,7 @@ if __name__ == "__main__":
                 hspace=0.5,
                 figsize=(12, 10) if regression else (17, 5),
                 fontsize=12,
-                legened_pos=(1.5, 2.5),
+                legened_pos=(1.5, 2.5) if regression else (1, 1),
                 legend_ncol=1,
                 sharey=True,
             )

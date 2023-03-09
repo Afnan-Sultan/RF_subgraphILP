@@ -652,12 +652,12 @@ def plot_common_features_mat(
     ax_title = f"{name} - {drug}"
     if selected:
         title = "Percentage of common selected features"
-        fig_name = f"{name}_{drug}_selected_features_mat.png"
+        fig_name = f"{drug}_selected_features_mat.png"
     else:
         if n_features is None:
             n_features = 100
         title = f"Number of common best features (best {n_features})"
-        fig_name = f"{name}_{drug}_important_features_mat.png"
+        fig_name = f"{drug}_important_features_mat.png"
     plt.suptitle(title)
     ax = fig.add_subplot(111)
     ax.set_title(ax_title, fontsize=10)
