@@ -643,6 +643,7 @@ def plot_common_features_mat(
     figsize=(7.7, 6),
     selected=False,
     title_pos=0.85,
+    limits=[0, 100],
 ):
     os.makedirs(output_dir, exist_ok=True)
     alpha = df.index.to_list()
@@ -660,7 +661,7 @@ def plot_common_features_mat(
     plt.suptitle(title)
     ax = fig.add_subplot(111)
     ax.set_title(ax_title, fontsize=10)
-    cax = ax.matshow(df, interpolation="nearest")
+    cax = ax.matshow(df, interpolation="nearest", vmin=limits[0], vmax=limits[1])
     fig.colorbar(cax)
     ax.set_xticklabels([""] + alpha)
     ax.set_yticklabels([""] + alpha)
@@ -701,14 +702,13 @@ def plot_params_acc(
     figsize=(20, 15),
     fig_ncols=2,
     transparent=False,
-    # hspace=0.5,
     row_title_ypos=0.2,
     row_title_xpos=0.13,
 ):
     os.makedirs(output_dir, exist_ok=True)
     fig_nrows = len(param_acc)
     fig, axes = plt.subplots(fig_nrows, fig_ncols, sharey="row", figsize=figsize)
-    # plt.subplots_adjust(hspace=hspace)
+    plt.subplots_adjust(top=0.93)
     plt.suptitle(f"Parameters Tuning", fontsize=20)
     for row_idx, metric in enumerate(list(param_acc.keys())):
         df = param_acc[metric].sort_index().groupby(level=0).mean()

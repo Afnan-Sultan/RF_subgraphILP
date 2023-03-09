@@ -83,8 +83,14 @@ def grid_search_cv(
     train_scores = pd.Series(..., columns=["ic_50"], index=[cell_lines: List[int]])
     return: dict of results for each hyperparameter combination
     """
-    parameters_grid = kwargs.training.parameters_grid
+    drug = kwargs.data.drug_name
     model = kwargs.model.current_model
+    parameters_grid = kwargs.training.parameters_grid
+    drugs_tuned_params = kwargs.data.drugs_tuned_params
+    if drugs_tuned_params is not None and kwargs.training.test_average:
+        tuned_parameters = drugs_tuned_params[drug][model]
+        for param, tuned_val in tuned_parameters.items():
+            parameters_grid[0][param] = tuned_val
 
     # grid search with cross validation
     start = time.time()

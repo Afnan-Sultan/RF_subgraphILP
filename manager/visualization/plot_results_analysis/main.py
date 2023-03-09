@@ -2,8 +2,8 @@ import os
 
 from manager.data.post_process_results import (
     comp_features_intersection,
-    compare_bias_ablation_features,
     get_data_vs_prior_features_info,
+    get_features_and_importance,
     postprocess_final,
     postprocessing,
     recruit_drugs,
@@ -27,24 +27,27 @@ from manager.visualization.plot_results_analysis.variables import (
 from tqdm import tqdm
 
 if __name__ == "__main__":
-    results_path = "../../../results_average_test"
-    # results_path = "../../../results_cv"
-    output_path = "../../../figures_v4"
-    # output_path = "../../../figures_v4/cv"
+    # results_path = "../../../results_average_test"
+    results_path = "../../../results_cv"
+    # output_path = "../../../figures_v4"
+    output_path = "../../../figures/cv"
 
     # data uploading kwargs
     regression = True
     targeted = False
     weighted = True
     simple_weight = True
-    averaged_results = True if "average" in results_path else False
-    original = False
+    averaged_results = False if "cv" in results_path else True
+    fc = True if "fc" in results_path else False
+    double_weighted = True if "double" in results_path else False
+    less_features = True if "less" in results_path else False
+    original = True if "all" in results_path else False
 
     # postprocessing kwargs
     get_trees_info = False
-    get_features_intersection = True
+    get_features_intersection = False
     n_features = 100
-    compare_bias_ablation = True
+    compare_bias_ablation = False
 
     # plot kwargs
     accuracies = False
@@ -56,7 +59,7 @@ if __name__ == "__main__":
     splits = False
     num_features = False
     plot_intersection_matrix = False
-    plot_parameters_performance = False
+    plot_parameters_performance = True
 
     analysis = {
         "rf_vs_subilp": 0,
@@ -66,7 +69,7 @@ if __name__ == "__main__":
         "without_bias": 0,
         "without_synergy": 0,
         "num_features": 0,
-        "all": 0,
+        "all": 1,
     }
 
     condition, output_dir, per_drug_dir = output_mkdir(
@@ -83,40 +86,21 @@ if __name__ == "__main__":
 
     analysis_list = [key for key, val in analysis.items() if val]
     analysis_params = analysis_utils(
-        analysis_list, regression, targeted, condition, title
+        analysis_list,
+        regression,
+        targeted,
+        condition,
+        title,
+        averaged_results=averaged_results,
+        accuracies=accuracies,
+        fc=fc,
+        double_weighted=double_weighted,
+        less_features=less_features,
+        original=original,
     )
 
-    parameters_grid = None
-    final_models_acc = None
-    all_features_acc = None
-    drugs_acc = None
-    final_models_parameters = None
-    final_models_best_features = None
-    final_models_num_features = None
-    drug_info = None
-    metric_best_models = None
-    metric_best_models_count = None
-    parameters_grid_acc = None
-    parameters_grid_acc_per_drug = None
-    cross_validation_splits_acc = None
-    runtimes = None
-
     for analysis_type, params in analysis_params:
-        if not averaged_results:
-            if accuracies:
-                specific_models = [
-                    "corr_thresh_bias",
-                    "corr_thresh_bias_tuned",
-                    "subILP_bias",
-                    "subILP_bias_tuned",
-                ]
-            else:
-                specific_models = [
-                    "corr_thresh_bias_tuned",
-                    "subILP_bias_tuned",
-                ]
-        else:
-            specific_models = params["specific_models"]
+        specific_models = params["specific_models"]
         title = params["title"]
         fig_name = params["fig_name"]
         fig_height = params["fig_height"]
@@ -127,7 +111,6 @@ if __name__ == "__main__":
         (
             parameters_grid,
             final_models_acc,
-            all_features_acc,
             drugs_acc,
             final_models_parameters,
             final_models_best_features,
@@ -155,11 +138,9 @@ if __name__ == "__main__":
         # x = final_models_acc["sensitivity"]["test_score"].loc[recruited_drugs["corr_thresh_bias_sauron"], :]
 
         if accuracies:
-            if original:
-                to_arrange = all_features_acc
-            else:
-                to_arrange = final_models_acc
-            final_models_acc_arranged = {m: to_arrange[m] for m in arranged_metrics}
+            final_models_acc_arranged = {
+                m: final_models_acc[m] for m in arranged_metrics
+            }
 
             if averaged_results:
                 for metric in final_models_acc_arranged:
@@ -405,19 +386,30 @@ if __name__ == "__main__":
         biased_file = "../../../results_average_test/classification_weighted_biased_gt_750/trees_features_summary.json"
 
     if get_trees_info:
-        (
-            trees_features_dist,
-            trees_features_summary,
-            models_features_importance,
-        ) = trees_summary(trees_folder=trees_folder, all_features=original)
+        (trees_features_dist, _, _) = trees_summary(
+            trees_folder=trees_folder, all_features=original
+        )
         if get_features_intersection:
-            to_compare = ["subgraphilp", "corr_num", "corr_thresh"]
+            to_compare = ["subILP_bias", "corr_num_bias", "corr_thresh_bias"]
+            models_features_importance = get_features_and_importance(
+                results_path=results_path,
+                to_compare=to_compare,
+                regression=regression,
+                metrics=list(renamed_metrics.keys()),
+                condition=condition,
+                targeted=targeted,
+                averaged_results=averaged_results,
+                all_features=original,
+                output_dir=output_dir,
+                name="data_vs_prior_",
+                ablation=False,
+            )
             important = comp_features_intersection(
                 models_features_importance,
                 to_compare,
                 n_features,
-                output_dir,
-                add_bias=True,
+                output_dir=output_dir,
+                name="data_vs_prior_",
             )
             features, _ = get_data_vs_prior_features_info(biased_file)
             selected = comp_features_intersection(features, to_compare, selected=True)
@@ -433,7 +425,7 @@ if __name__ == "__main__":
                         df, drug, plot_dir, n_features=n_features, name=name
                     )
 
-                    df = selected[drug]["num_common"]
+                    df = selected[drug]["num_common"].transpose()
                     plot_common_features_mat(
                         df, drug, plot_dir, name=name, selected=True
                     )
@@ -450,23 +442,6 @@ if __name__ == "__main__":
     if compare_bias_ablation:
         corr_file = os.path.join(files_dir, "initial_features_info.jsonl")
         subilp_file = os.path.join(files_dir, "initial_features_info_subgraph.json")
-        (
-            ablation_features,
-            ablation_num_features,
-            ablation_important_features,
-        ) = compare_bias_ablation_features(
-            results_path,
-            corr_file,
-            subilp_file,
-            biased_file,
-            regression,
-            list(renamed_metrics.keys()),
-            condition,
-            targeted,
-            averaged_results,
-            original,
-            output_dir,
-        )
         to_compare = [
             "subILP",
             "subILP_bias",
@@ -475,6 +450,26 @@ if __name__ == "__main__":
             "corr_thresh",
             "corr_thresh_bias",
         ]
+        (
+            ablation_features,
+            ablation_num_features,
+            ablation_important_features,
+        ) = get_features_and_importance(
+            results_path=results_path,
+            to_compare=to_compare,
+            regression=regression,
+            metrics=list(renamed_metrics.keys()),
+            condition=condition,
+            targeted=targeted,
+            averaged_results=averaged_results,
+            all_features=original,
+            output_dir=output_dir,
+            name="bias_ablation_",
+            ablation=True,
+            corr_file=corr_file,
+            subilp_file=subilp_file,
+            biased_file=biased_file,
+        )
         plot_single_boxplot(
             ablation_num_features,
             col_map,
@@ -495,7 +490,7 @@ if __name__ == "__main__":
         if plot_intersection_matrix:
             plot_dir = os.path.join(per_drug_dir, "bias_ablation")
             for drug, info in selected_features_intersection.items():
-                df = info["num_common"]
+                df = info["num_common"].transpose()
                 plot_common_features_mat(
                     df,
                     drug,
@@ -510,7 +505,8 @@ if __name__ == "__main__":
             ablation_important_features,
             to_compare,
             n_features,
-            output_dir,
+            output_dir=output_dir,
+            name="bias_ablation_",
         )
         if plot_intersection_matrix:
             plot_dir = os.path.join(per_drug_dir, "bias_ablation")

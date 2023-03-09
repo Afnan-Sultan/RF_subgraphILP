@@ -1,4 +1,6 @@
+import json
 import os
+import re
 from functools import cached_property
 from typing import List, Optional, Union
 
@@ -168,6 +170,19 @@ class DataConfing(BaseModel):
     # --- CTD files ---
     ctd_file: str  # path to the ctd file
 
+    # --- tuned parameters files ---
+    tuned_params: str = ""
+
+    @cached_property
+    def drugs_tuned_params(self) -> Union[dict, None]:
+        if os.path.isfile(self.tuned_params):
+            with open(self.tuned_params, "r", encoding="utf-8") as file:
+                json_data = re.sub(r"}\s*{", "},{", file.read())
+                tuned_params_dict = json.loads(json_data)
+        else:
+            tuned_params_dict = None
+        return tuned_params_dict
+
     @cached_property
     def processed_files(self) -> ProcessedFiles:
         return ProcessedFiles(self)
@@ -237,6 +252,20 @@ class Kwargs(BaseModel):
             return ""
 
     @cached_property
+    def gcv(self):
+        if self.training.grid_search and not self.training.test_average:
+            return "_gcv"
+        else:
+            return ""
+
+    @cached_property
+    def single_network(self):
+        if "-" not in self.training.num_knodes:
+            return "_single_network"
+        else:
+            return ""
+
+    @cached_property
     def matrices_output_dir(self) -> str:
         mat_dir = os.path.join(
             self.output_dir, f"drugs_per_cells_gt_{self.training.cell_lines_thresh}"
@@ -261,14 +290,17 @@ class Kwargs(BaseModel):
             len(self.model.model_names) == 1
             and self.model.model_names[0] == "subgraphilp"
         ):
-            folder = f"{self.training.de_method}_"
+            temp1 = f"{self.training.de_method}_"
         else:
-            folder = ""
+            temp1 = ""
+        if self.data.drugs_tuned_params is not None:
+            temp2 = "_tuned"
+        else:
+            temp2 = ""
         new_dir = os.path.join(
             self.output_dir,
-            f"{self.original}{folder}{self.method}{self.weight}{self.bias}{self.target}"
-            f"{self.sauron_rf}_"
-            f"gt_{self.training.cell_lines_thresh}",
+            f"{self.original}{temp1}{self.method}{self.weight}{self.bias}{self.target}{self.sauron_rf}"
+            f"_gt_{self.training.cell_lines_thresh}{self.gcv}{self.single_network}{temp2}",
         )
         os.makedirs(new_dir, exist_ok=True)
         return new_dir

@@ -1,7 +1,3 @@
-import pandas as pd
-from manager.training.subgraphilp import get_samples
-
-
 def calculate_linear_weights(threshold, response_values):
     sum_weights_sensitive = 0.0
     sum_weights_resistant = 0.0

@@ -54,10 +54,6 @@ def aggregate_result_files(
         drugs_with_targets = list(target_dd.keys())
 
     models_to_compare = None
-    if all_features:
-        original_file = [file for file in results_files if "original" in file][0]
-        original_dd = read_results_file(original_file)
-        models_to_compare = original_dd[list(original_dd.keys())[0]].keys()
 
     for file in results_files:
         if "original" in file and not all_features:
@@ -68,6 +64,7 @@ def aggregate_result_files(
         result_dict = read_results_file(file, averaged_results)
         print(file, len(result_dict.keys()))  # TODO: remove
 
+        prefix, suffix = models_names_fixes(file)
         for drug, models in result_dict.items():
             if targeted and drug not in drugs_with_targets:
                 # update drugs_dict with only drugs that have targets
@@ -77,6 +74,8 @@ def aggregate_result_files(
                 drugs_dict,
                 drug,
                 models,
+                prefix,
+                suffix,
                 file,
                 models_to_compare=models_to_compare,
             )
@@ -209,33 +208,51 @@ def comp_num_features(drug, model, results, num_features, computed_num_features)
     results[model]["parameters_combo_cv_results"]["0"]["stats"] = stats
 
 
-def rename_models(drugs_dict, drug, models, file, models_to_compare=None):
-    """
-    rename models with proper prefix and suffix according to the file name (train configuration)
-    """
-    if "original" in file:
-        prefix0 = "all_"
+def models_names_fixes(file):
+    file_dir = os.path.basename(os.path.dirname(file))
+    if "targeted" in file_dir:
+        prefix = "targeted_"
     else:
-        prefix0 = ""
-    if "targeted" in file:
-        prefix1 = "targeted_"
-    else:
-        prefix1 = ""
-    prefix = f"{prefix0}{prefix1}"
+        prefix = ""
 
-    if "biased" in file:
+    if "biased" in file_dir:
         suffix1 = "_bias"
     else:
         suffix1 = ""
-    if "sauron" in file:
+    if "sauron" in file_dir:
         suffix2 = "_sauron"
     else:
         suffix2 = ""
-    if "gcv" in file:
-        suffix3 = "_tuned"
+    if "gcv" in file_dir:
+        suffix3 = ""  # "_tuned"
     else:
         suffix3 = ""
-    suffix = f"{suffix1}{suffix2}{suffix3}"
+    if "fc" in file_dir:
+        suffix4 = "_fc"
+    else:
+        suffix4 = ""
+    if "double" in file_dir:
+        suffix5 = "_weighted_features"
+    else:
+        suffix5 = ""
+    if "single_network" in file_dir:
+        suffix6 = "_small"
+    else:
+        suffix6 = ""
+    if "original" in file_dir:
+        suffix7 = "_all_features"
+    else:
+        suffix7 = ""
+    suffix = f"{suffix1}{suffix2}{suffix3}{suffix4}{suffix5}{suffix6}{suffix7}"
+    return prefix, suffix
+
+
+def rename_models(
+    drugs_dict, drug, models, prefix, suffix, file, models_to_compare=None
+):
+    """
+    rename models with proper prefix and suffix according to the file name (train configuration)
+    """
 
     for model, results in models.items():
         if models_to_compare is not None and model not in models_to_compare:
@@ -246,8 +263,10 @@ def rename_models(drugs_dict, drug, models, file, models_to_compare=None):
         elif model == "original":
             if "sauron" in file:
                 new_name = f"{prefix}rf_sauron"
+            elif "original" in file:
+                new_name = f"rf{suffix}"
             else:
-                new_name = f"{prefix}rf"
+                new_name = "rf"
         elif model == "subgraphilp":
             new_name = f"{prefix}subILP{suffix}"
         else:
@@ -618,26 +637,12 @@ def postprocessing(
                         ] = cv_stats_df[f"{metric}_{params_acc_stat}"].to_list()
                 # endregion
     runtimes = serialize_dict(runtimes, [0]).swaplevel(0, 1, axis=1)
+
+    with open(os.path.join(output_dir, "tuned_params.json"), "w") as params_file:
+        params_file.write(json.dumps(final_models_parameters))
     final_models_parameters = serialize_dict(
         final_models_parameters, [2, 1]
     ).transpose()
-
-    if all_features:
-        all_features_acc = {}
-        for metric, results in final_models_acc.items():
-            all_features_acc[metric] = {}
-            for drug, models in results.items():
-                all_features_acc[metric][drug] = {}
-                orig = [
-                    model.replace("all_", "")
-                    for model in list(models.keys())
-                    if "all_" in model
-                ]
-                for model, scores in models.items():
-                    if model in orig or "all" in model:
-                        all_features_acc[metric][drug][model] = scores
-    else:
-        all_features_acc = None
 
     unique_num_features_df = pd.concat(
         [pd.DataFrame(final_models_num_unique_features).transpose()],
@@ -666,11 +671,6 @@ def postprocessing(
         final_models_acc[metric] = serialize_dict(
             final_models_acc[metric], 0
         ).swaplevel(axis=1)
-
-        if all_features_acc is not None:
-            all_features_acc[metric] = serialize_dict(
-                all_features_acc[metric], 0
-            ).swaplevel(axis=1)
 
         parameters_grid_acc[metric] = serialize_dict(
             parameters_grid_acc[metric], [2, 0]
@@ -740,7 +740,6 @@ def postprocessing(
     return (
         parameters_grid,
         final_models_acc,
-        all_features_acc,
         drugs_acc,
         final_models_parameters,
         final_models_best_features,
@@ -986,7 +985,7 @@ def trees_summary(trees_folder, all_features=False):
     return trees_features_dist, trees_features_summary, models_features_imp
 
 
-def get_data_vs_prior_features_info(biased_file):
+def get_data_vs_prior_features_info(biased_file, ablation=False):
     trees_features_summary, _ = read_trees_summary(biased_file)
     features = {}
     num_features = {}
@@ -1001,19 +1000,24 @@ def get_data_vs_prior_features_info(biased_file):
                 features[drug]["subILP_bias"] = genes
                 num_features[drug]["subILP_bias"] = num_genes
             else:
-                features[drug][f"{model}_bias"] = genes
-                num_features[drug][f"{model}_bias"] = num_genes
-    num_features = pd.DataFrame(num_features).transpose()
-    return features, num_features
+                if "bias" not in model:
+                    model = f"{model}_bias"
+                features[drug][model] = genes
+                num_features[drug][model] = num_genes
+    if ablation:
+        return features, num_features
+    else:
+        num_features = pd.DataFrame(num_features).transpose()
+        return features, num_features
 
 
 def comp_features_intersection(
     models_features_importance,
     models_to_compare,
     n_features=None,
-    output_dir=None,
-    add_bias=False,
     selected=False,
+    output_dir=None,
+    name="",
 ):
     features_intersection = {}
     if isinstance(models_features_importance, list):
@@ -1035,8 +1039,6 @@ def comp_features_intersection(
                 temp = models[model].sort_values(ascending=False)[:n_features]
                 if model == "subgraphilp":
                     model = "subILP"
-                if add_bias:
-                    model = f"{model}_bias"
                 models_info[model] = temp
 
             features_intersection[drug] = {
@@ -1092,22 +1094,22 @@ def comp_features_intersection(
     dfs_concat.reset_index(inplace=True)
     mean_concat = dfs_concat.groupby("index").mean()
     features_intersection["Drugs' Average"] = {
-        "num_common": mean_concat.loc[mean_concat.columns]
+        "num_common": mean_concat.loc[models_to_compare, models_to_compare]
     }
 
     if output_dir is not None:
-        with open(os.path.join(output_dir, "best_features.json"), "w") as features_file:
+        with open(
+            os.path.join(output_dir, f"{name}best_features.json"), "w"
+        ) as features_file:
             features_file.write(
                 json.dumps(features_intersection, indent=2, cls=NewJsonEncoder)
             )
     return features_intersection
 
 
-def compare_bias_ablation_features(
+def get_features_and_importance(
     results_path,
-    corr_file,
-    subilp_file,
-    biased_file,
+    to_compare,
     regression,
     metrics,
     condition,
@@ -1115,6 +1117,11 @@ def compare_bias_ablation_features(
     averaged_results,
     all_features,
     output_dir,
+    name="",
+    ablation=True,
+    corr_file=None,
+    subilp_file=None,
+    biased_file=None,
 ):
     drugs_dict = aggregate_result_files(
         results_path=results_path,
@@ -1127,14 +1134,7 @@ def compare_bias_ablation_features(
     for drug, rf_models in drugs_dict.items():
         most_important_features[drug] = {}
         for rf_model, results in rf_models.items():
-            if rf_model in [
-                "subILP",
-                "subILP_bias",
-                "corr_num",
-                "corr_num_bias",
-                "corr_thresh",
-                "corr_thresh_bias",
-            ]:
+            if rf_model in to_compare:
                 best_model = get_best_model(
                     results, regression, rf_models, rf_model, metrics
                 )
@@ -1148,20 +1148,22 @@ def compare_bias_ablation_features(
                     temp_df["feature_importance"].values, index=temp_df["GeneSymbol"]
                 )
     with open(
-        os.path.join(output_dir, "bias_ablation_important_features.json"), "w"
+        os.path.join(output_dir, f"{name}important_features.json"), "w"
     ) as features_file:
         features_file.write(
             json.dumps(most_important_features, indent=2, cls=NewJsonEncoder)
         )
-    features, num_features = get_bias_ablation_features_info(
-        corr_file, subilp_file, biased_file
-    )
-    num_features = pd.DataFrame(num_features).transpose()
-    return features, num_features, most_important_features
+    if ablation:
+        features, num_features = get_bias_ablation_features_info(
+            corr_file, subilp_file, biased_file
+        )
+        num_features = pd.DataFrame(num_features).transpose()
+        return features, num_features, most_important_features
+    else:
+        return most_important_features
 
 
 def get_bias_ablation_features_info(corr_file, subilp_file, biased_file):
-    trees_features_summary, _ = read_trees_summary(biased_file)
     with open(subilp_file, "r", encoding="utf-8") as file:
         json_data = re.sub(r"}\s*{", "},{", file.read())
         subilp_info = json.loads(json_data)
@@ -1175,32 +1177,18 @@ def get_bias_ablation_features_info(corr_file, subilp_file, biased_file):
                     corr_info[drug] = {}
                 for model_name, info in model.items():
                     corr_info[drug][model_name] = info
-
-    features = {}
-    num_features = {}
-    for drug, models in trees_features_summary.items():
-        features[drug] = {}
-        num_features[drug] = {}
+    features, num_features = get_data_vs_prior_features_info(biased_file, ablation=True)
+    for drug, models in corr_info.items():
         for model, info in models.items():
-            genes = info["features_dist"]["GeneID"].to_list()
-            genes = [int(g) for g in genes]
-            num_genes = info["stats"]["num_features_overall"]
-            if model == "subgraphilp":
-                features[drug]["subILP"] = subilp_info[drug]["features"]
-                num_features[drug]["subILP"] = subilp_info[drug]["num_features"]
+            features[drug][model] = corr_info[drug][model]["features"]
+            num_features[drug][model] = corr_info[drug][model]["num_features"]
 
-                features[drug]["subILP_bias"] = genes
-                num_features[drug]["subILP_bias"] = num_genes
-            else:
-                features[drug][model] = corr_info[drug][model]["features"]
-                num_features[drug][model] = corr_info[drug][model]["num_features"]
-
-                features[drug][f"{model}_bias"] = genes
-                num_features[drug][f"{model}_bias"] = num_genes
+            features[drug]["subILP"] = subilp_info[drug]["features"]
+            num_features[drug]["subILP"] = subilp_info[drug]["num_features"]
     return features, num_features
 
 
-def read_ablation_imp_file(imp_file):
+def read_best_imp_file(imp_file):
     with open(imp_file, "r", encoding="utf-8") as file:
         json_data = re.sub(r"}\s*{", "},{", file.read())
         data = json.loads(json_data)
@@ -1215,35 +1203,9 @@ def read_ablation_imp_file(imp_file):
     return imp_dict
 
 
-def common_imp_feat_regression_n_classification(
-    regression_file, classification_file, ablation
-):
-    if ablation:
-        regression_features = read_ablation_imp_file(regression_file)
-        classification_features = read_ablation_imp_file(classification_file)
-    else:
-        regression_imp = read_trees_imp_file(regression_file)
-        classification_imp = read_trees_imp_file(classification_file)
-        regression_features = {}
-        classification_features = {}
-        for drug, regression_df in regression_imp.items():
-            classify_df = classification_imp[drug]
-            regression_features[drug] = {}
-            classification_features[drug] = {}
-            for model in regression_df.columns:
-                if model == "subgraphilp":
-                    renamed_model = "subILP_bias"
-                else:
-                    renamed_model = f"{model}_bias"
-                regress_features = (
-                    regression_df[model].sort_values().index.to_list()[:100]
-                )
-                classify_features = (
-                    classify_df[model].sort_values().index.to_list()[:100]
-                )
-                regression_features[drug][renamed_model] = regress_features
-                classification_features[drug][renamed_model] = classify_features
-
+def common_imp_feat_regression_n_classification(regression_file, classification_file):
+    regression_features = read_best_imp_file(regression_file)
+    classification_features = read_best_imp_file(classification_file)
     models = list(regression_features[list(regression_features.keys())[0]].keys())
     important_features_intersection = comp_features_intersection(
         [regression_features, classification_features], models_to_compare=models
@@ -1252,31 +1214,22 @@ def common_imp_feat_regression_n_classification(
 
 
 if __name__ == "__main__":
-    ablation = True
+    ablation = False
     if ablation:
-        classification_file = (
-            "../../figures_v4/weighted/classification/not_targeted/best_features.json"
-        )
-        regression_file = (
-            "../../figures_v4/weighted/regression/not_targeted/best_features.json"
-        )
+        classification_file = "../../figures_v4/weighted/classification/not_targeted/bias_ablation_best_features.json"
+        regression_file = "../../figures_v4/weighted/regression/not_targeted/bias_ablation_best_features.json"
         name = "Regression and Classification - Bias Ablation"
     else:
-        classification_file = "../../results_average_test/classification_weighted_biased_gt_750/models_features_imp.json"
-        regression_file = "../../results_average_test/regression_weighted_biased_gt_750/models_features_imp.json"
+        classification_file = "../../figures_v4/weighted/classification/not_targeted/data_vs_prior_best_features.json"
+        regression_file = "../../figures_v4/weighted/regression/not_targeted/data_vs_prior_best_features.json"
         name = "Regression and Classification - Prior knowledge VS statistical"
 
     imp_features_intersections = common_imp_feat_regression_n_classification(
-        regression_file, classification_file, ablation=ablation
+        regression_file, classification_file
     )
     df = imp_features_intersections["Drugs' Average"]["num_common"]
     drug = "Drugs' Average"
     plot_dir = "../../figures_v4"
     plot_common_features_mat(
-        df,
-        drug,
-        plot_dir,
-        figsize=(10, 10),
-        name=name,
-        title_pos=0.95,
+        df, drug, plot_dir, figsize=(10, 10), name=name, title_pos=0.95, limits=(0, 100)
     )

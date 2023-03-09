@@ -1,30 +1,34 @@
 import os
 
 col_map = {
+    "subILP": "thistle",
+    "subILP_bias": "plum",
+    "subILP_sauron": "violet",
+    "subILP_bias_sauron": "purple",
+    "subILP_bias_tuned": "pink",
+    "subILP_bias_fc": "pink",
+    "subILP_bias_small": "pink",
+    "subILP_bias_weighted_features": "pink",
+    "targeted_subILP": "lightsteelblue",
+    "targeted_subILP_bias": "cornflowerblue",
+    "targeted_subILP_sauron": "royalblue",
+    "targeted_subILP_bias_sauron": "navy",
+    "rf": "peachpuff",
+    "rf_sauron": "sandybrown",
+    "rf_all_features": "indianred",
+    "random": "lightgrey",
+    "random_bias": "grey",
     "corr_num": "lemonchiffon",
     "corr_num_bias": "khaki",
     "corr_num_sauron": "darkkhaki",
     "corr_num_bias_sauron": "olive",
     "corr_thresh": "paleturquoise",
     "corr_thresh_bias": "mediumturquoise",
-    "corr_thresh_bias_tuned": "lightblue",
     "corr_thresh_sauron": "lightseagreen",
     "corr_thresh_bias_sauron": "teal",
-    "all_corr_thresh": "blue",
-    "subILP": "thistle",
-    "subILP_bias": "plum",
-    "subILP_bias_tuned": "pink",
-    "subILP_sauron": "violet",
-    "subILP_bias_sauron": "purple",
-    "targeted_subILP": "lightsteelblue",
-    "targeted_subILP_bias": "cornflowerblue",
-    "targeted_subILP_sauron": "royalblue",
-    "targeted_subILP_bias_sauron": "navy",
-    "rf": "peachpuff",
-    "all_rf": "darkred",
-    "rf_sauron": "sandybrown",
-    "random": "lightgrey",
-    "random_bias": "grey",
+    "corr_thresh_bias_tuned": "lightblue",
+    "corr_thresh_bias_weighted_features": "lightblue",
+    "corr_thresh_all_features": "lightblue",
 }
 
 
@@ -75,7 +79,19 @@ def get_metrics(regression=True):
     return metrics, title, arranged_metrics
 
 
-def analysis_utils(analysis_list, regression, targeted, condition, title):
+def analysis_utils(
+    analysis_list,
+    regression,
+    targeted,
+    condition,
+    title,
+    averaged_results=False,
+    accuracies=False,
+    fc=False,
+    double_weighted=False,
+    less_features=False,
+    original=False,
+):
     sub_analysis = []
     if regression:
         row_title_xpos = 0.45
@@ -263,56 +279,97 @@ def analysis_utils(analysis_list, regression, targeted, condition, title):
         elif analysis_type == "all":
             params["fig_name"] = f"performance_{condition}"
             params["fig_width"] = 21.0
-            if regression:
+            if not averaged_results:
+                if accuracies:
+                    params["specific_models"] = [
+                        "corr_thresh_bias",
+                        "corr_thresh_bias_tuned",
+                        "subILP_bias",
+                        "subILP_bias_tuned",
+                    ]
+                else:
+                    params["specific_models"] = [
+                        "corr_thresh_bias",
+                        "subILP_bias",  # _tuned",  # _tuned",
+                    ]
+            elif fc:
+                params["fig_width"] = 15.0
                 params["specific_models"] = [
-                    "rf",
-                    "rf_sauron",
-                    "random",
-                    "random_bias",
-                    "subILP",
                     "subILP_bias",
-                    "subILP_sauron",
-                    "subILP_bias_sauron",
-                    "corr_num",
-                    "corr_num_bias",
-                    "corr_num_sauron",
-                    "corr_num_bias_sauron",
-                    "corr_thresh",
-                    "corr_thresh_bias",
-                    "corr_thresh_sauron",
-                    "corr_thresh_bias_sauron",
+                    "subILP_bias_fc",
                 ]
-                if targeted:
-                    params["fig_width"] = 29.0
-                    params["specific_models"].extend(
-                        [
-                            "targeted_subILP_bias_sauron",
-                            "targeted_subILP_sauron",
-                            "targeted_subILP_bias",
-                            "targeted_subILP",
-                        ]
-                    )
-            else:
+            elif double_weighted:
+                params["fig_width"] = 27.0
+                params["specific_models"] = [
+                    "subILP_bias",
+                    "subILP_bias_weighted_features",
+                    "corr_thresh_bias",
+                    "corr_thresh_bias_weighted_features",
+                ]
+            elif less_features:
                 params["fig_width"] = 17.0
                 params["specific_models"] = [
-                    "rf",
-                    "random",
-                    "random_bias",
-                    "subILP",
                     "subILP_bias",
-                    "corr_num",
-                    "corr_num_bias",
-                    "corr_thresh",
-                    "corr_thresh_bias",
+                    "subILP_bias_small",
                 ]
-                if targeted:
-                    params["fig_width"] = 19.0
-                    params["specific_models"].extend(
-                        [
-                            "targeted_subILP_bias",
-                            "targeted_subILP",
-                        ]
-                    )
+            elif original:
+                params["specific_models"] = [
+                    "rf",
+                    "rf_all_features",
+                    "corr_thresh",
+                    "corr_thresh_all_features",
+                ]
+            else:
+                if regression:
+                    params["specific_models"] = [
+                        "rf",
+                        "rf_sauron",
+                        "random",
+                        "random_bias",
+                        "subILP",
+                        "subILP_bias",
+                        "subILP_sauron",
+                        "subILP_bias_sauron",
+                        "corr_num",
+                        "corr_num_bias",
+                        "corr_num_sauron",
+                        "corr_num_bias_sauron",
+                        "corr_thresh",
+                        "corr_thresh_bias",
+                        "corr_thresh_sauron",
+                        "corr_thresh_bias_sauron",
+                    ]
+                    if targeted:
+                        params["fig_width"] = 29.0
+                        params["specific_models"].extend(
+                            [
+                                "targeted_subILP_bias_sauron",
+                                "targeted_subILP_sauron",
+                                "targeted_subILP_bias",
+                                "targeted_subILP",
+                            ]
+                        )
+                else:
+                    params["fig_width"] = 17.0
+                    params["specific_models"] = [
+                        "rf",
+                        "random",
+                        "random_bias",
+                        "subILP",
+                        "subILP_bias",
+                        "corr_num",
+                        "corr_num_bias",
+                        "corr_thresh",
+                        "corr_thresh_bias",
+                    ]
+                    if targeted:
+                        params["fig_width"] = 19.0
+                        params["specific_models"].extend(
+                            [
+                                "targeted_subILP_bias",
+                                "targeted_subILP",
+                            ]
+                        )
         else:
             continue
         sub_analysis.append((analysis_type, params))
