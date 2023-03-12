@@ -28,16 +28,17 @@ from tqdm import tqdm
 
 if __name__ == "__main__":
     results_path = "../../../results_average_test"
-    # results_path = "../../../results_cv"
+    # results_path = "../../../results_tuned"
     output_path = "../../../figures"
-    # output_path = "../../../figures/cv"
+    # output_path = "../../../figures/tuned"
 
     # data uploading kwargs
     regression = False
     targeted = False
     weighted = True
     simple_weight = True
-    averaged_results = False if "cv" in results_path else True
+    averaged_results = True
+    tuned = True if "tuned" in results_path else False
     fc = True if "fc" in results_path else False
     double_weighted = True if "double" in results_path else False
     less_features = True if "less" in results_path else False
@@ -45,27 +46,27 @@ if __name__ == "__main__":
 
     # postprocessing kwargs
     get_trees_info = False
-    compare_bias_ablation = False
-    get_features_intersection = False
+    compare_bias_ablation = True
+    get_features_intersection = True
     n_features = 100
 
     # plot kwargs
     accuracies = False
     per_drug = False
     final = False
-    runtime = True
+    runtime = False
     best_models_count = False
     plot_features_dist = False
-    splits = True
+    splits = False
     num_features = False
-    plot_intersection_matrix = False
+    plot_intersection_matrix = True
     plot_parameters_performance = False
 
     analysis = {
         "rf_vs_subilp": 0,
         "with_sauron": 0,
         "targeted": 0,
-        "data_vs_prior": 1,
+        "data_vs_prior": 0,
         "without_bias": 0,
         "without_synergy": 0,
         "num_features": 0,
@@ -91,8 +92,7 @@ if __name__ == "__main__":
         targeted,
         condition,
         title,
-        averaged_results=averaged_results,
-        accuracies=accuracies,
+        tuned=tuned,
         fc=fc,
         double_weighted=double_weighted,
         less_features=less_features,

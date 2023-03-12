@@ -85,12 +85,11 @@ def analysis_utils(
     targeted,
     condition,
     title,
-    averaged_results=False,
-    accuracies=False,
     fc=False,
     double_weighted=False,
     less_features=False,
     original=False,
+    tuned=False,
 ):
     sub_analysis = []
     if regression:
@@ -109,7 +108,6 @@ def analysis_utils(
             params["fig_name"] = f"rf_vs_subilp_{condition}"
             params["fig_width"] = 15.0
             if not regression:
-                # params["row_title_xpos"] = 0.5
                 params["fig_width"] = 18.0
             params["specific_models"] = [
                 "rf",
@@ -279,19 +277,13 @@ def analysis_utils(
         elif analysis_type == "all":
             params["fig_name"] = f"performance_{condition}"
             params["fig_width"] = 21.0
-            if not averaged_results:
-                if accuracies:
-                    params["specific_models"] = [
-                        "corr_thresh_bias",
-                        "corr_thresh_bias_tuned",
-                        "subILP_bias",
-                        "subILP_bias_tuned",
-                    ]
-                else:
-                    params["specific_models"] = [
-                        "corr_thresh_bias",
-                        "subILP_bias",  # _tuned",  # _tuned",
-                    ]
+            if tuned:
+                params["specific_models"] = [
+                    "corr_thresh_bias",
+                    "corr_thresh_bias_tuned",
+                    "subILP_bias",
+                    "subILP_bias_tuned",
+                ]
             elif fc:
                 params["fig_width"] = 15.0
                 params["specific_models"] = [

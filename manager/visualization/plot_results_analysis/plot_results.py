@@ -3,7 +3,6 @@ from math import ceil
 
 import matplotlib
 import matplotlib.pyplot as plt
-import numpy as np
 import pandas as pd
 from matplotlib.cbook import boxplot_stats
 from tqdm import tqdm

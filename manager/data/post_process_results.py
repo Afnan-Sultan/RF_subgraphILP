@@ -223,8 +223,8 @@ def models_names_fixes(file):
         suffix2 = "_sauron"
     else:
         suffix2 = ""
-    if "gcv" in file_dir:
-        suffix3 = ""  # "_tuned"
+    if "tuned" in file_dir:
+        suffix3 = "_tuned"
     else:
         suffix3 = ""
     if "fc" in file_dir:
@@ -1079,7 +1079,9 @@ def comp_features_intersection(
                 features_intersection[drug]["num_common"][model][
                     model_again
                 ] = num_common
-        df = pd.DataFrame(features_intersection[drug]["num_common"])
+        df = pd.DataFrame(features_intersection[drug]["num_common"]).loc[
+            models_to_compare, models_to_compare
+        ]
         if selected:
             features_intersection[drug]["num_common"] = (
                 100 * (df / df.max(axis=1))

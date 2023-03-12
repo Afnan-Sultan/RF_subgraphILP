@@ -17,7 +17,7 @@
   * `manager/train.py` is the script called for training with and without grid search cross validation
   * `manager/config.py` includes the different parameters used for training
 
-* The `data` folder contains all data used for the project (except the gene matrix  file for size constraints, which can be found at ??)
+* The `data` folder contains all data used for the project (except the gene matrix file for size constraints, which can be found [here](https://drive.google.com/file/d/1iEfgMjnRQ6CEBfwNHcKwVGJwys0t_qzd/view?usp=sharing))
 
 ## Model Training
 * `config.json` is an example for parameters file to be passed
