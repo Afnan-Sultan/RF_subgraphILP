@@ -14,7 +14,7 @@ def process_gdsc(print_analysis=False):
     cl_meta = pd.read_csv("gdsc_cell_lines_metadata.csv")
     drug_meta = pd.read_csv("gdsc_drugs_cell_lines_count.csv")
 
-    for version in ["GDSC1"]:  # , "GDSC2"]:
+    for version in ["GDSC2"]:  # , "GDSC1"]:
         drugs = drug_meta[drug_meta[" Datasets"] == version][
             ["Drug Id", " number of cell lines"]
         ]

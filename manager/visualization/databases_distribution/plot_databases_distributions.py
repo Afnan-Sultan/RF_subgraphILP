@@ -13,13 +13,13 @@ from nibr_pdxe import process_nibr
 
 # extract relevant information from each database. Results summary can be printed to std by passing
 # "print_analysis=True"
-process_ccle()
-process_ctrpv2()
-process_gsci()
-process_gdsc()
-process_gne()
-process_nci60()
-process_nibr()
+process_ccle(print_analysis=False)
+process_ctrpv2(print_analysis=False)
+process_gsci(print_analysis=False)
+process_gdsc(print_analysis=False)
+process_gne(print_analysis=False)
+process_nci60(print_analysis=False)
+process_nibr(print_analysis=False)
 
 print("Plotting results")
 
@@ -28,11 +28,12 @@ database_convert = {
     "ccle": "CCLE",
     "ctrpv2": "CTRPv2",
     "gcsi": "gCSI",
-    "gdsc": "GDSC1",
+    "gdsc": "GDSC2",
     "gne": "GNE",
     "nci60": "NCI60",
     "pdxe": "NIBR-PDXE",
 }
+sorted_CLs = ["GDSC2", "CTRPv2", "CCLE", "gCSI", "GNE", "NCI60"]
 
 # fetch the files outputted from the databases processing
 cl_per_drug_files = [
@@ -43,7 +44,7 @@ cl_per_type_files = [
 ]
 
 pdxe_db = {
-    "drugs": [
+    "drug": [
         file for file in os.listdir(os.getcwd()) if file.startswith("pdx_per_drug")
     ][0],
     "cancer_type": [
@@ -59,7 +60,7 @@ idx = 1
 fontsize = 14
 for key, val in {
     "pdxe": pdxe_db,
-    "Drugs": cl_per_drug_files,
+    "Drug": cl_per_drug_files,
     "Cancer Type": cl_per_type_files,
 }.items():
     if key == "pdxe":
@@ -87,7 +88,7 @@ for key, val in {
         database = file.split(".")[0].split("_")[-1]
         info = pd.read_csv(file)
         dist_info[database_convert[database]] = info.iloc[:, 1]
-
+    dist_info = {cl: dist_info[cl] for cl in sorted_CLs}
     ax = plt.subplot(1, 3, idx)
     ax.boxplot(dist_info.values())
     ax.set_xticklabels(dist_info.keys(), fontsize=fontsize)
@@ -103,5 +104,5 @@ for key, val in {
     idx += 1
     plt.xticks(rotation=25, ha="center")
 plt.subplots_adjust(wspace=0.5)
-plt.savefig("db_models_distribution.png")
+plt.savefig("../../../figures/db_models_distribution.png")
 # plt.show()

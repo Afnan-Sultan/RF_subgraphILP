@@ -29,11 +29,11 @@ from tqdm import tqdm
 if __name__ == "__main__":
     results_path = "../../../results_average_test"
     # results_path = "../../../results_tuned"
-    output_path = "../../../figures"
+    output_path = "../../../output"
     # output_path = "../../../figures/tuned"
 
     # data uploading kwargs
-    regression = False
+    regression = True
     targeted = False
     weighted = True
     simple_weight = True

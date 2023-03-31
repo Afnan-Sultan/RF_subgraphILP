@@ -36,9 +36,6 @@ def train(
         f"Weighted Features: {kwargs.training.weight_features}"
     )
 
-    if kwargs.training.sauron:
-        assert kwargs.training.regression
-
     if kwargs.training.bias_rf:
         assert "original" not in kwargs.model.model_names
 
